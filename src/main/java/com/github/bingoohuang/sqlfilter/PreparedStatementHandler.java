@@ -26,7 +26,7 @@ public class PreparedStatementHandler implements InvocationHandler {
     private final List<FilterItem> items;
     private final List<Map<Integer, ColumnInfo>> colsList;
     private final Map<Integer, ColumnInfo> setCols;
-    private final Object filter;
+    private final Object[] filterBeans;
 
     Map<Integer, Object> parameters = null;
 
@@ -63,7 +63,8 @@ public class PreparedStatementHandler implements InvocationHandler {
         List<Object> args = Lists.newArrayList();
 
         int beanIndex = 0;
-        for (val parameter : item.getMethod().getParameters()) {
+        val method = item.getMethod();
+        for (val parameter : method.getParameters()) {
             if (parameter.getType() == SqlFilterContext.class) {
                 args.add(new SqlFilterContext());
             } else {
@@ -77,7 +78,11 @@ public class PreparedStatementHandler implements InvocationHandler {
             }
         }
 
-        invokeMethod(item.getMethod(), filter, args.toArray(new Object[0]));
+        for(val filterBean : filterBeans) {
+            if (method.getDeclaringClass().isInstance(filterBean)) {
+                invokeMethod(method, filterBean, args.toArray(new Object[0]));
+            }
+        }
     }
 
 

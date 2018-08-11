@@ -5,15 +5,10 @@ import lombok.Getter;
 
 import java.util.List;
 
+@Getter
 public class ScheduleFilter {
-    @Getter private List<Schedule> addedSchedules = Lists.newArrayList();
-    @Getter private List<Schedule> deletedSchedules = Lists.newArrayList();
-    @Getter private List<Schedule> updatedSchedules = Lists.newArrayList();
-
-    @SqlFilter(table = "t_schedule", type = FilterType.INSERT)
-    public void onScheduleAdd(Schedule schedule, SqlFilterContext context) {
-        addedSchedules.add(schedule);
-    }
+    private final List<Schedule> deletedSchedules = Lists.newArrayList();
+    private final List<Schedule> updatedSchedules = Lists.newArrayList();
 
     @SqlFilter(table = "t_schedule", type = FilterType.UPDATE)
     public void onScheduleUpdate(Schedule scheduleOld, Schedule scheduleNew) {

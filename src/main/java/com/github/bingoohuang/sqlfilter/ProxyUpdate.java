@@ -7,28 +7,22 @@ import com.google.common.collect.Maps;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
 
-import java.lang.reflect.Method;
-import java.sql.Connection;
 import java.util.Map;
-
-import static com.github.bingoohuang.sqlfilter.ReflectUtil.invokeMethod;
 
 @RequiredArgsConstructor
 public class ProxyUpdate implements ProxyPrepare {
     private final SQLUpdateStatement stmt;
-    private final Method method;
-    private final Object[] args;
 
     @Override
-    public Object create(FilterParser filterParser, Connection conn, Object filter) {
-        val items = filterParser.findByFilterType(stmt.getTableName().getSimpleName(), FilterType.UPDATE);
-        if (items.isEmpty()) return invokeMethod(method, args);
+    public Object create(FilterParser filterParser, Object ps, Object[] filterBeans) {
+        val tableName = stmt.getTableName().getSimpleName();
+        val items = filterParser.findByFilterType(tableName, FilterType.UPDATE);
+        if (items.isEmpty()) return ps;
 
         val setCols = createUpdateColumnInfo();
         val cols = SqlParseUtil.createWhereColumnInfo(stmt.getWhere());
-        val ps = invokeMethod(method, conn, args);
 
-        return new ProxyImpl(ps, Lists.newArrayList(cols), setCols, items, filter).create();
+        return new ProxyImpl(ps, Lists.newArrayList(cols), setCols, items, filterBeans).create();
     }
 
     private Map<Integer, ColumnInfo> createUpdateColumnInfo() {
@@ -37,9 +31,10 @@ public class ProxyUpdate implements ProxyPrepare {
         for (val item : stmt.getItems()) {
             ++index;
 
-            val itemColumn = item.getColumn();
-            if (itemColumn instanceof SQLIdentifierExpr) {
-                val col = new ColumnInfo(((SQLIdentifierExpr) itemColumn).getSimpleName().toUpperCase());
+            val column = item.getColumn();
+            if (column instanceof SQLIdentifierExpr) {
+                val expr = (SQLIdentifierExpr) column;
+                val col = new ColumnInfo(expr.getSimpleName().toUpperCase());
                 SqlParseUtil.fulfilColumnInfo(item.getValue(), col);
                 setCols.put(index, col);
             }

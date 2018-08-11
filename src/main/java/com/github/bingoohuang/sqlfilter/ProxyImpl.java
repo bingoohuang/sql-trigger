@@ -14,13 +14,13 @@ public class ProxyImpl {
     private final List<Map<Integer, ColumnInfo>> colsList;
     private final Map<Integer, ColumnInfo> setCols;
     private final List<FilterItem> items;
-    private final Object filter;
+    private final Object[] filterBeans;
 
     public Object create() {
         fulfilVarIndex();
         return Proxy.newProxyInstance(ProxyImpl.class.getClassLoader(),
                 new Class[]{PreparedStatement.class},
-                new PreparedStatementHandler(preparedStatement, items, colsList, setCols, filter));
+                new PreparedStatementHandler(preparedStatement, items, colsList, setCols, filterBeans));
     }
 
     private void fulfilVarIndex() {

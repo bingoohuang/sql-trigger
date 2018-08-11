@@ -7,29 +7,24 @@ import com.google.common.collect.Maps;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
 
-import java.lang.reflect.Method;
-import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
 
-import static com.github.bingoohuang.sqlfilter.ReflectUtil.invokeMethod;
 import static com.github.bingoohuang.sqlfilter.SqlParseUtil.fulfilColumnInfo;
 
 @RequiredArgsConstructor
 public class ProxyInsert implements ProxyPrepare {
     private final SQLInsertStatement stmt;
-    private final Method method;
-    private final Object[] args;
 
-    @Override public Object create(FilterParser filterParser, Connection conn, Object filter) {
-        val items = filterParser.findByFilterType(stmt.getTableName().getSimpleName(), FilterType.INSERT);
-        if (items.isEmpty()) return invokeMethod(method, args);
+    @Override public Object create(FilterParser filterParser, Object ps, Object[] filterBeans) {
+        val tableName = stmt.getTableName().getSimpleName();
+        val items = filterParser.findByFilterType(tableName, FilterType.INSERT);
+        if (items.isEmpty()) return ps;
 
         val cols = createSqlInsertColumns();
         val colsList = fulfilSqlInsertColumns(cols);
-        val ps = invokeMethod(method, conn, args);
 
-        return new ProxyImpl(ps, Lists.newArrayList(colsList), null, items, filter).create();
+        return new ProxyImpl(ps, Lists.newArrayList(colsList), null, items, filterBeans).create();
 
     }
 

@@ -10,3 +10,4 @@ public class FilterItem {
     private final FilterType type;
     private final Method method;
 }
+

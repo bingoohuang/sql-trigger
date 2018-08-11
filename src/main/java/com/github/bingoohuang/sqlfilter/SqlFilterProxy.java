@@ -17,13 +17,13 @@ import static com.github.bingoohuang.sqlfilter.ReflectUtil.invokeMethod;
 
 public class SqlFilterProxy {
     private final Connection conn;
-    private final Object filter;
+    private final Object[] filterBeans;
     private final FilterParser filterParser;
 
-    public SqlFilterProxy(Connection conn, Object filter) {
+    public SqlFilterProxy(Connection conn, Object... filterBeans) {
         this.conn = conn;
-        this.filter = filter;
-        this.filterParser = new FilterParser(filter);
+        this.filterBeans = filterBeans;
+        this.filterParser = new FilterParser(filterBeans);
     }
 
     public Connection create() {
@@ -38,22 +38,19 @@ public class SqlFilterProxy {
     }
 
     private Object proxyPreparedStatement(Method method, Object[] args) {
-        val sqlStatements = SQLUtils.parseStatements((String) args[0], JdbcConstants.MYSQL);
-        val filterSqlParser = createFilterSqlParser(method, args, sqlStatements.get(0));
-        if (filterSqlParser != null) {
-            return filterSqlParser.create(filterParser, conn, filter);
-        }
-
-        return invokeMethod(method, conn, args);
+        val stmts = SQLUtils.parseStatements((String) args[0], JdbcConstants.MYSQL);
+        val ps = invokeMethod(method, conn, args);
+        val sqlParser = createFilterSqlParser(stmts.get(0));
+        return sqlParser != null ? sqlParser.create(filterParser, ps, filterBeans) : ps;
     }
 
-    private ProxyPrepare createFilterSqlParser(Method method, Object[] args, SQLStatement stmt) {
+    private ProxyPrepare createFilterSqlParser(SQLStatement stmt) {
         if (stmt instanceof SQLInsertStatement) {
-            return new ProxyInsert((SQLInsertStatement) stmt, method, args);
+            return new ProxyInsert((SQLInsertStatement) stmt);
         } else if (stmt instanceof SQLDeleteStatement) {
-            return new ProxyDelete((SQLDeleteStatement) stmt, method, args);
+            return new ProxyDelete((SQLDeleteStatement) stmt);
         } else if (stmt instanceof SQLUpdateStatement) {
-            return new ProxyUpdate((SQLUpdateStatement) stmt, method, args);
+            return new ProxyUpdate((SQLUpdateStatement) stmt);
         }
 
         return null;

@@ -4,27 +4,24 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.val;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
 public class FilterParser {
     Map<String, FilterVo> map = Maps.newHashMap();
 
-    public FilterParser(Object filter) {
-        Method[] methods = filter.getClass().getMethods();
-        for (val method : methods) {
-            val sqlFilter = method.getAnnotation(SqlFilter.class);
-            if (sqlFilter == null) continue;
+    public FilterParser(Object... filterBeans) {
+        for (val filterBean : filterBeans) {
+            for (val method : filterBean.getClass().getMethods()) {
+                val sqlFilter = method.getAnnotation(SqlFilter.class);
+                if (sqlFilter == null) continue;
 
-            val upperCaseTable = sqlFilter.table().toUpperCase();
-            FilterVo filterVo = map.get(upperCaseTable);
-            if (filterVo == null) {
-                filterVo = new FilterVo();
-                map.put(upperCaseTable, filterVo);
+                val upperTable = sqlFilter.table().toUpperCase();
+                val filterVo = map.getOrDefault(upperTable, new FilterVo());
+                filterVo.add(sqlFilter.type(), method);
+
+                map.put(upperTable, filterVo);
             }
-
-            filterVo.add(sqlFilter.type(), method);
         }
     }
 
