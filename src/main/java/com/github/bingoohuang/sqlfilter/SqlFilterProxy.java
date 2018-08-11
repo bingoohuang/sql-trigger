@@ -2,9 +2,9 @@ package com.github.bingoohuang.sqlfilter;
 
 
 import com.alibaba.druid.sql.SQLUtils;
-import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
-import com.alibaba.druid.sql.ast.expr.SQLTextLiteralExpr;
-import com.alibaba.druid.sql.ast.expr.SQLVariantRefExpr;
+import com.alibaba.druid.sql.ast.SQLExpr;
+import com.alibaba.druid.sql.ast.expr.*;
+import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
 import com.alibaba.druid.util.JdbcConstants;
 import com.github.bingoohuang.utils.lang.Str;
@@ -62,25 +62,66 @@ public class SqlFilterProxy {
 
         val sqlStatement = sqlStatements.get(0);
         if (sqlStatement instanceof SQLInsertStatement) {
-            return proxyInsertPreparedStatement(method, args, map, conn, (SQLInsertStatement) sqlStatement, filter);
+            return proxyPreparedStatementInsert(method, args, map, conn, (SQLInsertStatement) sqlStatement, filter);
+        } else if (sqlStatement instanceof SQLDeleteStatement) {
+            return proxyPreparedStatementDelete(method, args, map, conn, (SQLDeleteStatement) sqlStatement, filter);
+
         }
 
         return method.invoke(conn, args);
     }
 
     @SneakyThrows
-    private static Object proxyInsertPreparedStatement(Method method, Object[] args, Map<String, FilterVo> map, Connection conn, SQLInsertStatement insertStmt, Object filter) {
+    private static Object proxyPreparedStatementDelete(Method method, Object[] args, Map<String, FilterVo> map, Connection conn, SQLDeleteStatement deleteStmt, Object filter) {
+        val tableName = deleteStmt.getTableName().getSimpleName();
+        val filterVo = map.get(tableName.toUpperCase());
+        if (filterVo == null) return method.invoke(conn, args);
+
+        val items = filterVo.findByFilterType(FilterType.DELETE);
+        if (items.isEmpty()) return method.invoke(conn, args);
+
+        Map<Integer, ColumnInfo> cols = Maps.newHashMap();
+        SQLExpr where = deleteStmt.getWhere();
+        if (where != null) {
+            processWhereItems(where, cols);
+        }
+
+        val ps = method.invoke(conn, args);
+
+        return proxyFilteredInsertPreparedStatement(ps, cols, items, filter);
+    }
+
+    private static void processWhereItems(SQLExpr where, Map<Integer, ColumnInfo> cols) {
+        if (where instanceof SQLBinaryOpExpr) {
+            val expr = (SQLBinaryOpExpr) where;
+            if (expr.getOperator() == SQLBinaryOperator.Equality) {
+                if (expr.getLeft() instanceof SQLIdentifierExpr) {
+                    val simpleName = ((SQLIdentifierExpr) expr.getLeft()).getSimpleName().toUpperCase();
+                    int colIndex = cols.size() + 1;
+                    if (expr.getRight() instanceof SQLTextLiteralExpr) {
+                        val columnInfo = new ColumnInfo(colIndex, simpleName);
+                        columnInfo.setValueType(ValueType.TextLiteral);
+                        columnInfo.setValue(((SQLTextLiteralExpr) expr.getRight()).getText());
+                        cols.put(colIndex, columnInfo);
+                    } else if (expr.getRight() instanceof SQLVariantRefExpr) {
+                        val columnInfo = new ColumnInfo(colIndex, simpleName);
+                        columnInfo.setValueType(ValueType.VariantRef);
+                        cols.put(colIndex, columnInfo);
+                    }
+                }
+            }
+        }
+    }
+
+    @SneakyThrows
+    private static Object proxyPreparedStatementInsert(Method method, Object[] args, Map<String, FilterVo> map, Connection conn, SQLInsertStatement insertStmt, Object filter) {
         val tableName = insertStmt.getTableName().getSimpleName();
 
         val filterVo = map.get(tableName.toUpperCase());
-        if (filterVo == null) {
-            return method.invoke(conn, args);
-        }
+        if (filterVo == null) return method.invoke(conn, args);
 
         val items = filterVo.findByFilterType(FilterType.INSERT);
-        if (items.isEmpty()) {
-            return method.invoke(conn, args);
-        }
+        if (items.isEmpty()) return method.invoke(conn, args);
 
 
         val cols = createSqlInsertColumns(insertStmt);
@@ -113,7 +154,6 @@ public class SqlFilterProxy {
                 });
     }
 
-
     private static void invokeFilter(Map<Integer, ColumnInfo> cols, List<FilterItem> items, Object filter, Map<Integer, Object> parameters) {
         for (val item : items) {
             invokeFilter(cols, item, filter, parameters);
@@ -142,6 +182,8 @@ public class SqlFilterProxy {
         Class<?> parameterType = parameter.getType();
         val param = Reflect.on(parameterType).create().get();
 
+        int mapped = 0;
+
         for (val field : parameterType.getDeclaredFields()) {
             val allowedNames = createAllowedNames(field.getName());
 
@@ -157,13 +199,24 @@ public class SqlFilterProxy {
             }
 
             setMapped(parameterType, param, field.getName());
+            ++mapped;
         }
+
+        setNoneMapped(parameterType, param, mapped == 0);
 
         return param;
     }
 
     private static void setAccessible(Field field) {
         if (!field.isAccessible()) field.setAccessible(true);
+    }
+
+    private static void setNoneMapped(Class<?> parameterType, Object param, boolean noneMapped) throws IllegalAccessException {
+        val mappedField = findField(parameterType, "noneMapped");
+        if (mappedField == null) return;
+
+        setAccessible(mappedField);
+        mappedField.set(param, noneMapped);
     }
 
     private static void setMapped(Class<?> parameterType, Object param, String fieldName) throws IllegalAccessException {
@@ -212,7 +265,8 @@ public class SqlFilterProxy {
     private static void fulfilSqlInsertColumns(SQLInsertStatement insertStmt, Map<Integer, ColumnInfo> cols) {
         int index = 0;
         for (val value : insertStmt.getValues().getValues()) {
-            val col = cols.get(++index);
+            ++index;
+            val col = cols.get(index);
             if (col == null) continue;
 
             if (value instanceof SQLVariantRefExpr) {
@@ -232,9 +286,7 @@ public class SqlFilterProxy {
             ++index;
 
             if (col instanceof SQLIdentifierExpr) {
-                val identifierExpr = (SQLIdentifierExpr) col;
-                String simpleName = identifierExpr.getSimpleName();
-
+                String simpleName = ((SQLIdentifierExpr) col).getSimpleName();
                 cols.put(index, new ColumnInfo(index, simpleName.toUpperCase()));
             }
         }

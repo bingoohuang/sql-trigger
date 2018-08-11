@@ -1,79 +1,43 @@
 package com.github.bingoohuang.sqlfilter;
 
 import com.google.common.collect.Lists;
-import lombok.*;
+import lombok.Cleanup;
+import lombok.SneakyThrows;
+import lombok.val;
 import org.junit.Test;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
 
 public class SqlFilterProxyTest {
-    @Data @NoArgsConstructor @AllArgsConstructor @Builder
-    public static class Schedule {
-        private String id;
-        private boolean idMapped;
-        private String name;
-        private boolean nameMapped;
-
-        private String scheduleState;
-    }
-
-    public static class ScheduleAddFilter {
-        @Getter private List<Schedule> schedules = Lists.newArrayList();
-
-        @SqlFilter(table = "t_schedule", type = FilterType.INSERT)
-        public void onScheduleAdd(Schedule schedule, SqlFilterContext context) {
-            schedules.add(schedule);
-        }
-
-        @SqlFilter(table = "t_schedule", type = FilterType.UPDATE)
-        public void onScheduleUpdate(Schedule scheduleOld, Schedule scheduleNew) {
-
-        }
-
-        @SqlFilter(table = "t_schedule", type = FilterType.DELETE)
-        public void onScheduleDelete(Schedule schedule) {
-
-        }
-    }
-
     @Test @SneakyThrows
     public void test() {
-        Class.forName("org.h2.Driver");
-        @Cleanup
-        val conn = DriverManager.getConnection("jdbc:h2:./src/test/resources/test", "sa", "");
-
-        ScheduleAddFilter filter = new ScheduleAddFilter();
-        Connection proxied = SqlFilterProxy.create(conn, filter);
-        {
-            @Cleanup
-            val stmt = proxied.prepareStatement("delete from T_SCHEDULE");
-            stmt.executeUpdate();
-        }
+        val filter = new ScheduleFilter();
+        @Cleanup val conn = SqlFilterProxy.create(Utils.getH2Connection(), filter);
+        Utils.executeSql(conn, "delete from T_SCHEDULE");
 
         {
-            @Cleanup
-            val stmt = proxied.prepareStatement("insert into T_SCHEDULE(id, name, schedule_state) values(?, ?, '正常')");
-            executeUpdate(stmt, "1", "bingoo");
-            executeUpdate(stmt, "2", "dingoo");
+            val sql = "insert into T_SCHEDULE(id, name, schedule_state) values(?, ?, '正常')";
+            @Cleanup val stmt = conn.prepareStatement(sql);
+            Utils.executeUpdate(stmt, "1", "bingoo");
+            Utils.executeUpdate(stmt, "2", "dingoo");
         }
 
-        assertThat(filter.schedules).isEqualTo(Lists.newArrayList(
+        assertThat(filter.getAddedSchedules()).isEqualTo(Lists.newArrayList(
                 Schedule.builder().id("1").idMapped(true).name("bingoo").nameMapped(true).scheduleState("正常").build(),
                 Schedule.builder().id("2").idMapped(true).name("dingoo").nameMapped(true).scheduleState("正常").build()
         ));
-    }
 
-    @SneakyThrows
-    public int executeUpdate(PreparedStatement ps, Object... boundParameters) {
-        for (int i = 0; i < boundParameters.length; ++i) {
-            ps.setObject(i + 1, boundParameters[i]);
+        Utils.executeSql(conn, "delete from T_SCHEDULE where id = '1'");
+        {
+            @Cleanup val stmt = conn.prepareStatement("delete from T_SCHEDULE where id = ?");
+            Utils.executeUpdate(stmt, "2");
         }
 
-        return ps.executeUpdate();
+        assertThat(filter.getDeletedSchedules()).isEqualTo(Lists.newArrayList(
+                Schedule.builder().noneMapped(true).build(),
+                Schedule.builder().id("1").idMapped(true).build(),
+                Schedule.builder().id("2").idMapped(true).build()
+        ));
     }
+
 }
