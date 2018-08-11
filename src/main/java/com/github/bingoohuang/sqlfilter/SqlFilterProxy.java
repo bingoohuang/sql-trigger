@@ -3,14 +3,12 @@ package com.github.bingoohuang.sqlfilter;
 
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLExpr;
-import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
-import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
-import com.alibaba.druid.sql.ast.expr.SQLTextLiteralExpr;
-import com.alibaba.druid.sql.ast.expr.SQLVariantRefExpr;
+import com.alibaba.druid.sql.ast.expr.*;
 import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import com.alibaba.druid.util.JdbcConstants;
+import com.alibaba.druid.util.StringUtils;
 import com.github.bingoohuang.utils.lang.Str;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -26,8 +24,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.github.bingoohuang.sqlfilter.ReflectUtil.setField;
+
 public class SqlFilterProxy {
     public static Connection create(Connection conn, Object filter) {
+        val map = createFilterConfigMap(filter);
+
+        return (Connection) proxyConnection(conn, map, filter);
+    }
+
+    private static Map<String, FilterVo> createFilterConfigMap(Object filter) {
         Map<String, FilterVo> map = Maps.newHashMap();
 
         Method[] methods = filter.getClass().getMethods();
@@ -44,8 +50,7 @@ public class SqlFilterProxy {
 
             filterVo.add(sqlFilter.type(), method);
         }
-
-        return (Connection) proxyConnection(conn, map, filter);
+        return map;
     }
 
     private static Object proxyConnection(Connection conn, Map<String, FilterVo> map, Object filter) {
@@ -59,7 +64,6 @@ public class SqlFilterProxy {
                 });
     }
 
-    @SneakyThrows
     private static Object proxyPreparedStatement(Method method, Object[] args, Map<String, FilterVo> map, Connection conn, Object filter) {
         val sql = (String) args[0];
         val sqlStatements = SQLUtils.parseStatements(sql, JdbcConstants.MYSQL);
@@ -73,23 +77,21 @@ public class SqlFilterProxy {
             return proxyPreparedStatementUpdate(method, args, map, conn, (SQLUpdateStatement) sqlStatement, filter);
         }
 
-        return method.invoke(conn, args);
+        return ReflectUtil.invokeMethod(method, conn, args);
     }
 
-    @SneakyThrows
     private static Object proxyPreparedStatementUpdate(Method method, Object[] args, Map<String, FilterVo> map, Connection conn, SQLUpdateStatement stmt, Object filter) {
         val tableName = stmt.getTableName().getSimpleName();
         val filterVo = map.get(tableName.toUpperCase());
-        if (filterVo == null) return method.invoke(conn, args);
+        if (filterVo == null) return ReflectUtil.invokeMethod(method, conn, args);
 
         val items = filterVo.findByFilterType(FilterType.UPDATE);
-        if (items.isEmpty()) return method.invoke(conn, args);
+        if (items.isEmpty()) return ReflectUtil.invokeMethod(method, conn, args);
 
         val setCols = createUpdateColumnInfo(stmt);
         val cols = createWhereColumnInfo(stmt.getWhere());
 
-        val ps = method.invoke(conn, args);
-
+        val ps = ReflectUtil.invokeMethod(method, conn, args);
 
         return proxyFilteredPreparedStatement(ps, cols, setCols, items, filter);
     }
@@ -110,33 +112,24 @@ public class SqlFilterProxy {
             val itemColumn = item.getColumn();
             if (itemColumn instanceof SQLIdentifierExpr) {
                 val col = new ColumnInfo(((SQLIdentifierExpr) itemColumn).getSimpleName().toUpperCase());
-
-                val itemValue = item.getValue();
-                if (itemValue instanceof SQLTextLiteralExpr) {
-                    col.setValueType(ValueType.TextLiteral);
-                    col.setValue(((SQLTextLiteralExpr) itemValue).getText());
-                } else if (itemValue instanceof SQLVariantRefExpr) {
-                    col.setValueType(ValueType.VariantRef);
-                }
-
+                fulfilColumnInfo(item.getValue(), col);
                 setCols.put(index, col);
             }
         }
         return setCols;
     }
 
-    @SneakyThrows
     private static Object proxyPreparedStatementDelete(Method method, Object[] args, Map<String, FilterVo> map, Connection conn, SQLDeleteStatement stmt, Object filter) {
         val tableName = stmt.getTableName().getSimpleName();
         val filterVo = map.get(tableName.toUpperCase());
-        if (filterVo == null) return method.invoke(conn, args);
+        if (filterVo == null) return ReflectUtil.invokeMethod(method, conn, args);
 
         val items = filterVo.findByFilterType(FilterType.DELETE);
-        if (items.isEmpty()) return method.invoke(conn, args);
+        if (items.isEmpty()) return ReflectUtil.invokeMethod(method, conn, args);
 
         val cols = createWhereColumnInfo(stmt.getWhere());
 
-        val ps = method.invoke(conn, args);
+        val ps = ReflectUtil.invokeMethod(method, conn, args);
 
         return proxyFilteredPreparedStatement(ps, cols, null, items, filter);
     }
@@ -152,11 +145,10 @@ public class SqlFilterProxy {
                 if (left instanceof SQLIdentifierExpr) {
                     val simpleName = ((SQLIdentifierExpr) left).getSimpleName().toUpperCase();
                     int colIndex = cols.size() + 1;
-                    if (right instanceof SQLTextLiteralExpr) {
-                        cols.put(colIndex, new ColumnInfo(simpleName, ValueType.TextLiteral, ((SQLTextLiteralExpr) right).getText()));
-                    } else if (right instanceof SQLVariantRefExpr) {
-                        cols.put(colIndex, new ColumnInfo(simpleName, ValueType.VariantRef, null));
-                    }
+
+                    ColumnInfo columnInfo = new ColumnInfo(simpleName);
+                    cols.put(colIndex, columnInfo);
+                    fulfilColumnInfo(right, columnInfo);
                 }
             } else if (Str.anyOf(operator, "AND", "OR")) {
                 processWhereItems(left, cols);
@@ -165,21 +157,20 @@ public class SqlFilterProxy {
         }
     }
 
-    @SneakyThrows
     private static Object proxyPreparedStatementInsert(Method method, Object[] args, Map<String, FilterVo> map, Connection conn, SQLInsertStatement stmt, Object filter) {
         val tableName = stmt.getTableName().getSimpleName();
 
         val filterVo = map.get(tableName.toUpperCase());
-        if (filterVo == null) return method.invoke(conn, args);
+        if (filterVo == null) return ReflectUtil.invokeMethod(method, conn, args);
 
         val items = filterVo.findByFilterType(FilterType.INSERT);
-        if (items.isEmpty()) return method.invoke(conn, args);
+        if (items.isEmpty()) return ReflectUtil.invokeMethod(method, conn, args);
 
 
         val cols = createSqlInsertColumns(stmt);
         fulfilSqlInsertColumns(stmt, cols);
 
-        val ps = method.invoke(conn, args);
+        val ps = ReflectUtil.invokeMethod(method, conn, args);
         return proxyFilteredPreparedStatement(ps, cols, null, items, filter);
 
     }
@@ -192,7 +183,7 @@ public class SqlFilterProxy {
                     Map<Integer, Object> parameters = null;
 
                     @Override
-                    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                    public Object invoke(Object proxy, Method method, Object[] args) {
                         if (Str.anyOf(method.getName(), "setString", "setObject")) {
                             int parameterIndex = (Integer) args[0];
                             if (parameters == null)
@@ -203,7 +194,7 @@ public class SqlFilterProxy {
                             parameters = null;
                         }
 
-                        return method.invoke(ps, args);
+                        return ReflectUtil.invokeMethod(method, ps, args);
                     }
                 });
     }
@@ -211,18 +202,20 @@ public class SqlFilterProxy {
     private static void fulfilVarIndex(Map<Integer, ColumnInfo> cols, Map<Integer, ColumnInfo> setCols) {
         int varIndex = 0;
         if (setCols != null) {
-            for (val e : setCols.entrySet()) {
-                if (e.getValue().getValueType() == ValueType.VariantRef) {
-                    e.getValue().setVarIndex(++varIndex);
-                }
-            }
+            varIndex = incrementVariantRef(setCols, varIndex);
         }
 
-        for (val e : cols.entrySet()) {
+        incrementVariantRef(cols, varIndex);
+    }
+
+    private static int incrementVariantRef(Map<Integer, ColumnInfo> setCols, int varIndex) {
+        for (val e : setCols.entrySet()) {
             if (e.getValue().getValueType() == ValueType.VariantRef) {
                 e.getValue().setVarIndex(++varIndex);
             }
         }
+
+        return varIndex;
     }
 
     private static void invokeFilter(Map<Integer, ColumnInfo> cols, Map<Integer, ColumnInfo> setCols, List<FilterItem> items, Object filter, Map<Integer, Object> parameters) {
@@ -252,10 +245,9 @@ public class SqlFilterProxy {
             }
         }
 
-        method.invoke(filter, args.toArray(new Object[args.size()]));
+        ReflectUtil.invokeMethod(method, filter, args.toArray(new Object[args.size()]));
     }
 
-    @SneakyThrows
     private static Object createBean(Parameter parameter, Map<Integer, ColumnInfo> cols, Map<Integer, Object> parameters) {
         Class<?> parameterType = parameter.getType();
         val param = Reflect.on(parameterType).create().get();
@@ -263,20 +255,18 @@ public class SqlFilterProxy {
         int mapped = 0;
 
         for (val field : parameterType.getDeclaredFields()) {
-            val allowedNames = createAllowedNames(field.getName());
+            val allowedNames = createAllowedNames(field);
 
             val columnInfo = findColumn(cols, allowedNames);
             if (columnInfo == null) continue;
 
-            setAccessible(field);
-
             if (columnInfo.getValueType() == ValueType.VariantRef) {
-                field.set(param, parameters.get(columnInfo.getVarIndex()));
-            } else if (columnInfo.getValueType() == ValueType.TextLiteral) {
-                field.set(param, columnInfo.getValue());
+                setField(field, param, parameters.get(columnInfo.getVarIndex()));
+            } else if (columnInfo.getValueType() == ValueType.Literal) {
+                setField(field, param, columnInfo.getValue());
             }
 
-            setMapped(parameterType, param, field.getName());
+            setMapped(parameterType, param, field);
             ++mapped;
         }
 
@@ -285,24 +275,22 @@ public class SqlFilterProxy {
         return param;
     }
 
-    private static void setAccessible(Field field) {
-        if (!field.isAccessible()) field.setAccessible(true);
-    }
-
-    private static void setNoneMapped(Class<?> parameterType, Object param, boolean noneMapped) throws IllegalAccessException {
-        val mappedField = findField(parameterType, "noneMapped");
+    private static void setNoneMapped(Class<?> parameterType, Object param, boolean noneMapped) {
+        val mappedField = ReflectUtil.findField(parameterType, "noneMapped");
         if (mappedField == null) return;
 
-        setAccessible(mappedField);
-        mappedField.set(param, noneMapped);
+        setField(mappedField, param, noneMapped);
     }
 
-    private static void setMapped(Class<?> parameterType, Object param, String fieldName) throws IllegalAccessException {
-        val mappedField = findField(parameterType, fieldName + "Mapped");
+    private static void setMapped(Class<?> parameterType, Object param, Field field) {
+        val filterColumn = field.getAnnotation(SqlFilterColumn.class);
+        val mappedFieldName = filterColumn == null || StringUtils.isEmpty(filterColumn.mappedField())
+                ? field.getName() + "Mapped" : filterColumn.mappedField();
+
+        val mappedField = ReflectUtil.findField(parameterType, mappedFieldName);
         if (mappedField == null) return;
 
-        setAccessible(mappedField);
-        mappedField.set(param, Boolean.TRUE);
+        setField(mappedField, param, Boolean.TRUE);
     }
 
     private static ColumnInfo findColumn(Map<Integer, ColumnInfo> cols, Set<String> names) {
@@ -313,7 +301,10 @@ public class SqlFilterProxy {
         return null;
     }
 
-    private static Set<String> createAllowedNames(String fieldName) {
+    private static Set<String> createAllowedNames(Field field) {
+        val filterColumn = field.getAnnotation(SqlFilterColumn.class);
+        val fieldName = filterColumn != null ? filterColumn.value() : field.getName();
+
         return Sets.newHashSet(fieldName.toUpperCase(), toUpperUnderScore(fieldName));
     }
 
@@ -332,14 +323,6 @@ public class SqlFilterProxy {
         return sb.toString().toUpperCase();
     }
 
-    private static Field findField(Class<?> type, String fieldName) {
-        for (val field : type.getDeclaredFields()) {
-            if (field.getName().equals(fieldName)) return field;
-        }
-
-        return null;
-    }
-
     private static void fulfilSqlInsertColumns(SQLInsertStatement insertStmt, Map<Integer, ColumnInfo> cols) {
         int index = 0;
         for (val value : insertStmt.getValues().getValues()) {
@@ -347,13 +330,27 @@ public class SqlFilterProxy {
             val col = cols.get(index);
             if (col == null) continue;
 
-            if (value instanceof SQLVariantRefExpr) {
-                col.setValueType(ValueType.VariantRef);
-            } else if (value instanceof SQLTextLiteralExpr) {
-                col.setValueType(ValueType.TextLiteral);
-                col.setValue(((SQLTextLiteralExpr) value).getText());
-            }
+            fulfilColumnInfo(value, col);
         }
+    }
+
+    private static boolean fulfilColumnInfo(SQLExpr value, ColumnInfo col) {
+        if (value instanceof SQLVariantRefExpr) {
+            col.setValueType(ValueType.VariantRef);
+            return true;
+        } else if (value instanceof SQLTextLiteralExpr) {
+            col.setValueType(ValueType.Literal);
+            val expr = (SQLTextLiteralExpr) value;
+            col.setValue(expr.getText());
+            return true;
+        } else if (value instanceof SQLIntegerExpr) {
+            val expr = (SQLIntegerExpr) value;
+            col.setValueType(ValueType.Literal);
+            col.setValue(expr.getNumber());
+            return true;
+        }
+
+        return false;
     }
 
     private static Map<Integer, ColumnInfo> createSqlInsertColumns(SQLInsertStatement insertStmt) {
@@ -364,7 +361,8 @@ public class SqlFilterProxy {
             ++index;
 
             if (col instanceof SQLIdentifierExpr) {
-                val simpleName = ((SQLIdentifierExpr) col).getSimpleName();
+                val expr = (SQLIdentifierExpr) col;
+                val simpleName = expr.getSimpleName();
                 cols.put(index, new ColumnInfo(simpleName.toUpperCase()));
             }
         }

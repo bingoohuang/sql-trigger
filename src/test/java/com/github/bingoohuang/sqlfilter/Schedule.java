@@ -12,7 +12,12 @@ public class Schedule {
     private String name;
     private boolean nameMapped;
 
-    private String scheduleState;
+    @SqlFilterColumn(value = "schedule_state", mappedField = "stateUsed")
+    private String state;
+
+    private boolean stateUsed;
 
     private boolean noneMapped;
+
+    private int subscribes;
 }
