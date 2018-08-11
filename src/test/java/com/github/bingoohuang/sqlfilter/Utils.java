@@ -7,7 +7,6 @@ import lombok.val;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 public class Utils {
     @SneakyThrows
@@ -17,16 +16,17 @@ public class Utils {
     }
 
     @SneakyThrows
-    public static int executeUpdate(PreparedStatement ps, Object... boundParameters) {
-        for (int i = 0; i < boundParameters.length; ++i) {
-            ps.setObject(i + 1, boundParameters[i]);
+    public static int executeUpdate(PreparedStatement ps, Object... args) {
+        for (int i = 0; i < args.length; ++i) {
+            ps.setObject(i + 1, args[i]);
         }
 
         return ps.executeUpdate();
     }
 
-    public static void executeSql(Connection conn, String sql) throws SQLException {
-        @Cleanup val stmt = conn.prepareStatement(sql);
-        stmt.executeUpdate();
+    @SneakyThrows
+    public static int executeUpdate(Connection conn, String sql, Object... args) {
+        @Cleanup val ps = conn.prepareStatement(sql);
+        return executeUpdate(ps, args);
     }
 }

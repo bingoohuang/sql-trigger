@@ -3,7 +3,10 @@ package com.github.bingoohuang.sqlfilter;
 
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLExpr;
-import com.alibaba.druid.sql.ast.expr.*;
+import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
+import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
+import com.alibaba.druid.sql.ast.expr.SQLTextLiteralExpr;
+import com.alibaba.druid.sql.ast.expr.SQLVariantRefExpr;
 import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
@@ -82,34 +85,44 @@ public class SqlFilterProxy {
         val items = filterVo.findByFilterType(FilterType.UPDATE);
         if (items.isEmpty()) return method.invoke(conn, args);
 
+        val setCols = createUpdateColumnInfo(stmt);
+        val cols = createWhereColumnInfo(stmt.getWhere());
+
+        val ps = method.invoke(conn, args);
+
+
+        return proxyFilteredPreparedStatement(ps, cols, setCols, items, filter);
+    }
+
+    private static Map<Integer, ColumnInfo> createWhereColumnInfo(SQLExpr where) {
+        Map<Integer, ColumnInfo> cols = Maps.newHashMap();
+        if (where != null) processWhereItems(where, cols);
+
+        return cols;
+    }
+
+    private static Map<Integer, ColumnInfo> createUpdateColumnInfo(SQLUpdateStatement stmt) {
         Map<Integer, ColumnInfo> setCols = Maps.newHashMap();
         int index = 0;
         for (val item : stmt.getItems()) {
             ++index;
-            if (item.getColumn() instanceof SQLIdentifierExpr) {
-                val col = new ColumnInfo(index, ((SQLIdentifierExpr) item.getColumn()).getSimpleName().toUpperCase());
 
-                if (item.getValue() instanceof SQLTextLiteralExpr) {
+            val itemColumn = item.getColumn();
+            if (itemColumn instanceof SQLIdentifierExpr) {
+                val col = new ColumnInfo(((SQLIdentifierExpr) itemColumn).getSimpleName().toUpperCase());
+
+                val itemValue = item.getValue();
+                if (itemValue instanceof SQLTextLiteralExpr) {
                     col.setValueType(ValueType.TextLiteral);
-                    col.setValue(((SQLTextLiteralExpr) item.getValue()).getText());
-                } else if (item.getValue() instanceof SQLVariantRefExpr) {
+                    col.setValue(((SQLTextLiteralExpr) itemValue).getText());
+                } else if (itemValue instanceof SQLVariantRefExpr) {
                     col.setValueType(ValueType.VariantRef);
                 }
 
                 setCols.put(index, col);
             }
         }
-
-        Map<Integer, ColumnInfo> cols = Maps.newHashMap();
-        SQLExpr where = stmt.getWhere();
-        if (where != null) {
-            processWhereItems(where, cols);
-        }
-
-        val ps = method.invoke(conn, args);
-
-
-        return proxyFilteredPreparedStatement(ps, cols, setCols, items, filter);
+        return setCols;
     }
 
     @SneakyThrows
@@ -121,11 +134,7 @@ public class SqlFilterProxy {
         val items = filterVo.findByFilterType(FilterType.DELETE);
         if (items.isEmpty()) return method.invoke(conn, args);
 
-        Map<Integer, ColumnInfo> cols = Maps.newHashMap();
-        SQLExpr where = stmt.getWhere();
-        if (where != null) {
-            processWhereItems(where, cols);
-        }
+        val cols = createWhereColumnInfo(stmt.getWhere());
 
         val ps = method.invoke(conn, args);
 
@@ -135,21 +144,23 @@ public class SqlFilterProxy {
     private static void processWhereItems(SQLExpr where, Map<Integer, ColumnInfo> cols) {
         if (where instanceof SQLBinaryOpExpr) {
             val expr = (SQLBinaryOpExpr) where;
-            if (expr.getOperator() == SQLBinaryOperator.Equality) {
-                if (expr.getLeft() instanceof SQLIdentifierExpr) {
-                    val simpleName = ((SQLIdentifierExpr) expr.getLeft()).getSimpleName().toUpperCase();
+            val left = expr.getLeft();
+            val right = expr.getRight();
+            val operator = expr.getOperator().getName();
+
+            if (Str.anyOf(operator, "=", "!=", "<>", ">", ">=", "<", "<=")) {
+                if (left instanceof SQLIdentifierExpr) {
+                    val simpleName = ((SQLIdentifierExpr) left).getSimpleName().toUpperCase();
                     int colIndex = cols.size() + 1;
-                    if (expr.getRight() instanceof SQLTextLiteralExpr) {
-                        val columnInfo = new ColumnInfo(colIndex, simpleName);
-                        columnInfo.setValueType(ValueType.TextLiteral);
-                        columnInfo.setValue(((SQLTextLiteralExpr) expr.getRight()).getText());
-                        cols.put(colIndex, columnInfo);
-                    } else if (expr.getRight() instanceof SQLVariantRefExpr) {
-                        val columnInfo = new ColumnInfo(colIndex, simpleName);
-                        columnInfo.setValueType(ValueType.VariantRef);
-                        cols.put(colIndex, columnInfo);
+                    if (right instanceof SQLTextLiteralExpr) {
+                        cols.put(colIndex, new ColumnInfo(simpleName, ValueType.TextLiteral, ((SQLTextLiteralExpr) right).getText()));
+                    } else if (right instanceof SQLVariantRefExpr) {
+                        cols.put(colIndex, new ColumnInfo(simpleName, ValueType.VariantRef, null));
                     }
                 }
+            } else if (Str.anyOf(operator, "AND", "OR")) {
+                processWhereItems(left, cols);
+                processWhereItems(right, cols);
             }
         }
     }
@@ -353,8 +364,8 @@ public class SqlFilterProxy {
             ++index;
 
             if (col instanceof SQLIdentifierExpr) {
-                String simpleName = ((SQLIdentifierExpr) col).getSimpleName();
-                cols.put(index, new ColumnInfo(index, simpleName.toUpperCase()));
+                val simpleName = ((SQLIdentifierExpr) col).getSimpleName();
+                cols.put(index, new ColumnInfo(simpleName.toUpperCase()));
             }
         }
 

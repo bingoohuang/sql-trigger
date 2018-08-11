@@ -13,7 +13,7 @@ public class SqlFilterProxyTest {
     public void test() {
         val filter = new ScheduleFilter();
         @Cleanup val conn = SqlFilterProxy.create(Utils.getH2Connection(), filter);
-        Utils.executeSql(conn, "delete from T_SCHEDULE");
+        Utils.executeUpdate(conn, "delete from T_SCHEDULE");
 
         {
             val sql = "insert into T_SCHEDULE(id, name, schedule_state) values(?, ?, '正常')";
@@ -27,7 +27,7 @@ public class SqlFilterProxyTest {
                 Schedule.builder().id("2").idMapped(true).name("dingoo").nameMapped(true).scheduleState("正常").build()
         ));
 
-        Utils.executeSql(conn, "delete from T_SCHEDULE where id = '1'");
+        Utils.executeUpdate(conn, "delete from T_SCHEDULE where id = '1'");
         {
             @Cleanup val stmt = conn.prepareStatement("delete from T_SCHEDULE where id = ?");
             Utils.executeUpdate(stmt, "2");
@@ -39,15 +39,15 @@ public class SqlFilterProxyTest {
                 Schedule.builder().id("2").idMapped(true).build()
         ));
 
-        Utils.executeSql(conn, "update T_SCHEDULE set name = 'bingoohuang' where id = '1'");
+        Utils.executeUpdate(conn, "update T_SCHEDULE set name = 'bingoohuang', schedule_state = '失效' where id = '1' and name = ?", "bingoo");
         {
             @Cleanup val stmt = conn.prepareStatement("update T_SCHEDULE set name = ? where id = ?");
             Utils.executeUpdate(stmt, "dingoohuang", "2");
         }
 
         assertThat(filter.getUpdatedSchedules()).isEqualTo(Lists.newArrayList(
-                Schedule.builder().id("1").idMapped(true).build(),
-                Schedule.builder().name("bingoohuang").nameMapped(true).build(),
+                Schedule.builder().id("1").idMapped(true).name("bingoo").nameMapped(true).build(),
+                Schedule.builder().name("bingoohuang").nameMapped(true).scheduleState("失效").build(),
                 Schedule.builder().id("2").idMapped(true).build(),
                 Schedule.builder().name("dingoohuang").nameMapped(true).build()
         ));
