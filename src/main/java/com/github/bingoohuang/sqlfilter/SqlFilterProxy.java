@@ -9,39 +9,36 @@ import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import com.alibaba.druid.util.JdbcConstants;
 import lombok.val;
 
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 
 import static com.github.bingoohuang.sqlfilter.ReflectUtil.invokeMethod;
 
 public class SqlFilterProxy {
-    private final Connection conn;
     private final Object[] filterBeans;
     private final FilterParser filterParser;
 
-    public SqlFilterProxy(Connection conn, Object... filterBeans) {
-        this.conn = conn;
+    public SqlFilterProxy(Object... filterBeans) {
         this.filterBeans = filterBeans;
         this.filterParser = new FilterParser(filterBeans);
     }
 
-    public Connection create() {
+    public Connection proxy(Connection conn) {
         return (Connection) Proxy.newProxyInstance(SqlFilterProxy.class.getClassLoader(),
                 new Class[]{Connection.class}, (proxy, method, args) -> {
+                    val invoke = invokeMethod(method, conn, args);
                     if (method.getName().equals("prepareStatement")) {
-                        return proxyPreparedStatement(method, args);
+                        return proxyPreparedStatement(invoke, args);
                     }
 
-                    return method.invoke(conn, args);
+                    return invoke;
                 });
     }
 
-    private Object proxyPreparedStatement(Method method, Object[] args) {
+    private Object proxyPreparedStatement(Object ps, Object[] args) {
         val stmts = SQLUtils.parseStatements((String) args[0], JdbcConstants.MYSQL);
-        val ps = invokeMethod(method, conn, args);
-        val sqlParser = createFilterSqlParser(stmts.get(0));
-        return sqlParser != null ? sqlParser.create(filterParser, ps, filterBeans) : ps;
+        val parser = createFilterSqlParser(stmts.get(0));
+        return parser != null ? parser.create(filterParser, ps, filterBeans) : ps;
     }
 
     private ProxyPrepare createFilterSqlParser(SQLStatement stmt) {

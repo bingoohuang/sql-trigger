@@ -9,13 +9,13 @@ import java.util.stream.Collectors;
 
 @Data
 public class FilterVo {
-    private List<FilterItem> items = Lists.newArrayList();
+    private final List<FilterItem> items = Lists.newArrayList();
 
     public void add(FilterType type, Method method) {
         items.add(new FilterItem(type, method));
     }
 
-    public List<FilterItem> findByFilterType(FilterType filterType) {
+    public List<FilterItem> filter(FilterType filterType) {
         return items.stream().filter(x -> x.getType() == filterType).collect(Collectors.toList());
     }
 }

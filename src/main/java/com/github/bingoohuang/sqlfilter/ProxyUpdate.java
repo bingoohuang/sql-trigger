@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
+import org.apache.commons.collections.CollectionUtils;
 
 import java.util.Map;
 
@@ -17,11 +18,10 @@ public class ProxyUpdate implements ProxyPrepare {
     public Object create(FilterParser filterParser, Object ps, Object[] filterBeans) {
         val tableName = stmt.getTableName().getSimpleName();
         val items = filterParser.findByFilterType(tableName, FilterType.UPDATE);
-        if (items.isEmpty()) return ps;
+        if (CollectionUtils.isEmpty(items)) return ps;
 
         val setCols = createUpdateColumnInfo();
         val cols = SqlParseUtil.createWhereColumnInfo(stmt.getWhere());
-
         return new ProxyImpl(ps, Lists.newArrayList(cols), setCols, items, filterBeans).create();
     }
 

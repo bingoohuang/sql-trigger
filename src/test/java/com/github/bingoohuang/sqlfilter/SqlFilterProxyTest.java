@@ -20,7 +20,7 @@ public class SqlFilterProxyTest {
         val addFilter = new ScheduleAddFilter();
         val filter = new ScheduleFilter();
 
-        @Cleanup val conn = new SqlFilterProxy(SqlTypeTestUtil.getH2Connection(), filter, addFilter).create();
+        @Cleanup val conn = new SqlFilterProxy(filter, addFilter).proxy(SqlTypeTestUtil.getH2Connection());
         executeUpdate(conn, "delete from T_SCHEDULE");
         assertThat(filter.getDeletedSchedules()).isEqualTo(Lists.newArrayList(
                 Schedule.builder().noneMapped(true).build()));

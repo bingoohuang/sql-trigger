@@ -3,10 +3,10 @@ package com.github.bingoohuang.sqlfilter;
 import lombok.val;
 
 public class NameUtil {
-    public static String toUpperUnderScore(String fieldName) {
+    public static String toUpperUnderScore(String name) {
         val sb = new StringBuilder();
 
-        char[] chars = fieldName.toCharArray();
+        char[] chars = name.toCharArray();
         sb.append(chars[0]);
         for (int i = 1; i < chars.length; ++i) {
             if (Character.isUpperCase(chars[i])) {

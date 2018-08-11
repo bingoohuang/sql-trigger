@@ -22,7 +22,7 @@ public class SqlParseUtil {
         return map;
     }
 
-    public static void fulfilColumnInfo(SQLExpr value, ColumnInfo col) {
+    public void fulfilColumnInfo(SQLExpr value, ColumnInfo col) {
         if (value instanceof SQLVariantRefExpr) {
             col.setValueType(ValueType.VariantRef);
         } else if (value instanceof SQLTextLiteralExpr) {

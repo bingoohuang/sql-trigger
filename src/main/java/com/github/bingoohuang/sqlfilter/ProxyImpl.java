@@ -20,7 +20,7 @@ public class ProxyImpl {
         fulfilVarIndex();
         return Proxy.newProxyInstance(ProxyImpl.class.getClassLoader(),
                 new Class[]{PreparedStatement.class},
-                new PreparedStatementHandler(preparedStatement, items, colsList, setCols, filterBeans));
+                new PsInvocationHandler(preparedStatement, items, colsList, setCols, filterBeans));
     }
 
     private void fulfilVarIndex() {
@@ -29,15 +29,16 @@ public class ProxyImpl {
             varIndex = incrementVariantRef(setCols, varIndex);
         }
 
-        for (val setCols1 : colsList) {
-            varIndex = incrementVariantRef(setCols1, varIndex);
+        for (val cols : colsList) {
+            varIndex = incrementVariantRef(cols, varIndex);
         }
     }
 
-    private int incrementVariantRef(Map<Integer, ColumnInfo> setCols, int varIndex) {
-        for (val e : setCols.entrySet()) {
-            if (e.getValue().getValueType() == ValueType.VariantRef) {
-                e.getValue().setVarIndex(++varIndex);
+    private int incrementVariantRef(Map<Integer, ColumnInfo> cols, int varIndex) {
+        for (val e : cols.entrySet()) {
+            val columnInfo = e.getValue();
+            if (columnInfo.getValueType() == ValueType.VariantRef) {
+                columnInfo.setVarIndex(++varIndex);
             }
         }
 

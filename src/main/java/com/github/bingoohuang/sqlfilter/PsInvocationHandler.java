@@ -21,7 +21,7 @@ import static com.github.bingoohuang.sqlfilter.ReflectUtil.setField;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 @RequiredArgsConstructor
-public class PreparedStatementHandler implements InvocationHandler {
+public class PsInvocationHandler implements InvocationHandler {
     private final Object preparedStatement;
     private final List<FilterItem> items;
     private final List<Map<Integer, ColumnInfo>> colsList;
@@ -29,7 +29,6 @@ public class PreparedStatementHandler implements InvocationHandler {
     private final Object[] filterBeans;
 
     Map<Integer, Object> parameters = null;
-
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {
@@ -48,15 +47,11 @@ public class PreparedStatementHandler implements InvocationHandler {
 
 
     private void invokeFilter() {
-        for (val item : items) {
-            invokeFilter(item);
-        }
+        items.forEach(x -> invokeFilter(x));
     }
 
     private void invokeFilter(FilterItem item) {
-        for (val cols : colsList) {
-            invokeFilter(cols, item);
-        }
+        colsList.forEach(x -> invokeFilter(x, item));
     }
 
     private void invokeFilter(Map<Integer, ColumnInfo> cols, FilterItem item) {
@@ -78,7 +73,7 @@ public class PreparedStatementHandler implements InvocationHandler {
             }
         }
 
-        for(val filterBean : filterBeans) {
+        for (val filterBean : filterBeans) {
             if (method.getDeclaringClass().isInstance(filterBean)) {
                 invokeMethod(method, filterBean, args.toArray(new Object[0]));
             }
@@ -87,7 +82,7 @@ public class PreparedStatementHandler implements InvocationHandler {
 
 
     private Object createBean(Parameter parameter, Map<Integer, ColumnInfo> cols) {
-        Class<?> parameterType = parameter.getType();
+        val parameterType = parameter.getType();
         val param = Reflect.on(parameterType).create().get();
 
         int mapped = 0;
@@ -95,15 +90,22 @@ public class PreparedStatementHandler implements InvocationHandler {
             val columnInfo = findColumn(cols, createAllowedNames(field));
             if (columnInfo == null) continue;
 
+            boolean fieldSet = false;
+            Object fieldValue = null;
             val valueType = columnInfo.getValueType();
             if (valueType == ValueType.VariantRef) {
-                setField(field, param, parameters.get(columnInfo.getVarIndex()));
+                fieldSet = true;
+                fieldValue = parameters.get(columnInfo.getVarIndex());
             } else if (valueType == ValueType.Literal) {
-                setField(field, param, columnInfo.getValue());
+                fieldSet = true;
+                fieldValue = columnInfo.getValue();
             }
 
-            setMapped(parameterType, param, field);
-            ++mapped;
+            if (fieldSet) {
+                setField(field, param, fieldValue);
+                setMapped(parameterType, param, field);
+                ++mapped;
+            }
         }
 
         setNoneMapped(parameterType, param, mapped == 0);
@@ -120,12 +122,9 @@ public class PreparedStatementHandler implements InvocationHandler {
 
     private void setMapped(Class<?> parameterType, Object param, Field field) {
         val fc = field.getAnnotation(SqlFilterColumn.class);
-        val mappedFieldName = fc == null || isEmpty(fc.mappedField()) ? field.getName() + "Mapped" : fc.mappedField();
-
-        val mappedField = ReflectUtil.findField(parameterType, mappedFieldName);
-        if (mappedField == null) return;
-
-        setField(mappedField, param, Boolean.TRUE);
+        val mappedName = fc == null || isEmpty(fc.mappedField()) ? field.getName() + "Mapped" : fc.mappedField();
+        val mappedField = ReflectUtil.findField(parameterType, mappedName);
+        if (mappedField != null) setField(mappedField, param, Boolean.TRUE);
     }
 
     private ColumnInfo findColumn(Map<Integer, ColumnInfo> cols, Set<String> names) {

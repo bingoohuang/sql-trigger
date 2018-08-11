@@ -1,11 +1,10 @@
 package com.github.bingoohuang.sqlfilter;
 
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import lombok.Value;
 
 import java.lang.reflect.Method;
 
-@Data @RequiredArgsConstructor
+@Value
 public class FilterItem {
     private final FilterType type;
     private final Method method;

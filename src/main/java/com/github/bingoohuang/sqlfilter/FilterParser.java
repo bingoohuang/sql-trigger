@@ -1,6 +1,5 @@
 package com.github.bingoohuang.sqlfilter;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.val;
 
@@ -19,7 +18,6 @@ public class FilterParser {
                 val upperTable = sqlFilter.table().toUpperCase();
                 val filterVo = map.getOrDefault(upperTable, new FilterVo());
                 filterVo.add(sqlFilter.type(), method);
-
                 map.put(upperTable, filterVo);
             }
         }
@@ -27,8 +25,8 @@ public class FilterParser {
 
     public List<FilterItem> findByFilterType(String tableName, FilterType filterType) {
         val filterVo = map.get(tableName.toUpperCase());
-        if (filterVo == null) return Lists.newArrayList();
+        if (filterVo == null) return null;
 
-        return filterVo.findByFilterType(filterType);
+        return filterVo.filter(filterType);
     }
 }

@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
+import org.apache.commons.collections.CollectionUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,7 @@ public class ProxyInsert implements ProxyPrepare {
     @Override public Object create(FilterParser filterParser, Object ps, Object[] filterBeans) {
         val tableName = stmt.getTableName().getSimpleName();
         val items = filterParser.findByFilterType(tableName, FilterType.INSERT);
-        if (items.isEmpty()) return ps;
+        if (CollectionUtils.isEmpty(items)) return ps;
 
         val cols = createSqlInsertColumns();
         val colsList = fulfilSqlInsertColumns(cols);
@@ -32,16 +33,13 @@ public class ProxyInsert implements ProxyPrepare {
         List<Map<Integer, ColumnInfo>> list = Lists.newArrayList();
 
         for (val values : stmt.getValuesList()) {
-            Map<Integer, ColumnInfo> cols = SqlParseUtil.clone(prototype);
+            val cols = SqlParseUtil.clone(prototype);
             list.add(cols);
 
             int index = 0;
             for (val value : values.getValues()) {
-                ++index;
-                val col = cols.get(index);
-                if (col == null) continue;
-
-                fulfilColumnInfo(value, col);
+                val col = cols.get(++index);
+                if (col != null) fulfilColumnInfo(value, col);
             }
         }
 
@@ -56,8 +54,7 @@ public class ProxyInsert implements ProxyPrepare {
             ++index;
 
             if (col instanceof SQLIdentifierExpr) {
-                val expr = (SQLIdentifierExpr) col;
-                val simpleName = expr.getSimpleName();
+                val simpleName = ((SQLIdentifierExpr) col).getSimpleName();
                 cols.put(index, new ColumnInfo(simpleName.toUpperCase()));
             }
         }
