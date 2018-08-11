@@ -4,15 +4,13 @@ import com.alibaba.druid.sql.ast.SQLExpr;
 import com.alibaba.druid.sql.ast.expr.*;
 import com.github.bingoohuang.utils.lang.Str;
 import com.google.common.collect.Maps;
-import lombok.experimental.UtilityClass;
 import lombok.val;
 
 import java.util.Map;
 
-@UtilityClass
 public class SqlParseUtil {
 
-    public Map<Integer, ColumnInfo> clone(Map<Integer, ColumnInfo> prototype) {
+    public static Map<Integer, ColumnInfo> clone(Map<Integer, ColumnInfo> prototype) {
         Map<Integer, ColumnInfo> map = Maps.newHashMap();
 
         for (val e : prototype.entrySet()) {
@@ -22,7 +20,7 @@ public class SqlParseUtil {
         return map;
     }
 
-    public void fulfilColumnInfo(SQLExpr value, ColumnInfo col) {
+    public static void fulfilColumnInfo(SQLExpr value, ColumnInfo col) {
         if (value instanceof SQLVariantRefExpr) {
             col.setValueType(ValueType.VariantRef);
         } else if (value instanceof SQLTextLiteralExpr) {
@@ -34,14 +32,14 @@ public class SqlParseUtil {
         }
     }
 
-    public Map<Integer, ColumnInfo> createWhereColumnInfo(SQLExpr where) {
+    public static Map<Integer, ColumnInfo> createWhereColumnInfo(SQLExpr where) {
         Map<Integer, ColumnInfo> cols = Maps.newHashMap();
         if (where != null) processWhereItems(where, cols);
 
         return cols;
     }
 
-    private void processWhereItems(SQLExpr where, Map<Integer, ColumnInfo> cols) {
+    private static void processWhereItems(SQLExpr where, Map<Integer, ColumnInfo> cols) {
         if (where instanceof SQLBinaryOpExpr) {
             val expr = (SQLBinaryOpExpr) where;
             val left = expr.getLeft();
