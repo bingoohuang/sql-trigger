@@ -38,6 +38,19 @@ public class SqlFilterProxyTest {
                 Schedule.builder().id("1").idMapped(true).build(),
                 Schedule.builder().id("2").idMapped(true).build()
         ));
+
+        Utils.executeSql(conn, "update T_SCHEDULE set name = 'bingoohuang' where id = '1'");
+        {
+            @Cleanup val stmt = conn.prepareStatement("update T_SCHEDULE set name = ? where id = ?");
+            Utils.executeUpdate(stmt, "dingoohuang", "2");
+        }
+
+        assertThat(filter.getUpdatedSchedules()).isEqualTo(Lists.newArrayList(
+                Schedule.builder().id("1").idMapped(true).build(),
+                Schedule.builder().name("bingoohuang").nameMapped(true).build(),
+                Schedule.builder().id("2").idMapped(true).build(),
+                Schedule.builder().name("dingoohuang").nameMapped(true).build()
+        ));
     }
 
 }

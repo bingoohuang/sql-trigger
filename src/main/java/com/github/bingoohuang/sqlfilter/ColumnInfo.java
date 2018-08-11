@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class ColumnInfo {
     private int index;
+    private int varIndex;
     private String name;
     private ValueType valueType;
     private String value;

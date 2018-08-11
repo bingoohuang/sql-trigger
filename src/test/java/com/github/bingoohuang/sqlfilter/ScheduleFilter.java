@@ -8,6 +8,7 @@ import java.util.List;
 public class ScheduleFilter {
     @Getter private List<Schedule> addedSchedules = Lists.newArrayList();
     @Getter private List<Schedule> deletedSchedules = Lists.newArrayList();
+    @Getter private List<Schedule> updatedSchedules = Lists.newArrayList();
 
     @SqlFilter(table = "t_schedule", type = FilterType.INSERT)
     public void onScheduleAdd(Schedule schedule, SqlFilterContext context) {
@@ -16,7 +17,8 @@ public class ScheduleFilter {
 
     @SqlFilter(table = "t_schedule", type = FilterType.UPDATE)
     public void onScheduleUpdate(Schedule scheduleOld, Schedule scheduleNew) {
-
+        updatedSchedules.add(scheduleOld);
+        updatedSchedules.add(scheduleNew);
     }
 
     @SqlFilter(table = "t_schedule", type = FilterType.DELETE)
