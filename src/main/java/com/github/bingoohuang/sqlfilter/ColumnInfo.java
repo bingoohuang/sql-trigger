@@ -12,10 +12,4 @@ public class ColumnInfo {
     public ColumnInfo(String name) {
         this.name = name;
     }
-
-    public ColumnInfo(String name, ValueType valueType, Object value) {
-        this.name = name;
-        this.valueType = valueType;
-        this.value = value;
-    }
 }

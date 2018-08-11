@@ -18,9 +18,20 @@ public class SqlFilterProxyTest {
     @Test @SneakyThrows
     public void test() {
         val filter = new ScheduleFilter();
-        @Cleanup val conn = SqlFilterProxy.create(SqlTypeTestUtil.getH2Connection(), filter);
+        @Cleanup val conn = new SqlFilterProxy(SqlTypeTestUtil.getH2Connection(), filter).create();
         executeUpdate(conn, "delete from T_SCHEDULE");
+        assertThat(filter.getDeletedSchedules()).isEqualTo(Lists.newArrayList(
+                Schedule.builder().noneMapped(true).build()));
 
+        executeUpdate(conn, "insert into T_SCHEDULE(id, name, schedule_state, subscribes) values(?, ?, '正常', ?), (?, ?, '正常', ?)",
+                "10", "xxx", 10, "20", "yyy", 20);
+        assertThat(filter.getAddedSchedules()).isEqualTo(Lists.newArrayList(
+                Schedule.builder().id("10").idMapped(true).name("xxx").nameMapped(true).state("正常").stateUsed(true).subscribes(10).build(),
+                Schedule.builder().id("20").idMapped(true).name("yyy").nameMapped(true).state("正常").stateUsed(true).subscribes(20).build()
+        ));
+
+        executeUpdate(conn, "delete from T_SCHEDULE");
+        filter.getAddedSchedules().clear();
         {
             val sql = "insert into T_SCHEDULE(id, name, schedule_state, subscribes) values(?, ?, '正常', 9)";
             @Cleanup val stmt = conn.prepareStatement(sql);
@@ -53,6 +64,7 @@ public class SqlFilterProxyTest {
                 Mapp.of("ID", "2", "NAME", "dingoohuang", "SCHEDULE_STATE", "正常")
         ));
 
+        filter.getDeletedSchedules().clear();
         executeUpdate(conn, "delete from T_SCHEDULE where id = '1'");
         {
             @Cleanup val stmt = conn.prepareStatement("delete from T_SCHEDULE where id = ?");
@@ -60,7 +72,6 @@ public class SqlFilterProxyTest {
         }
 
         assertThat(filter.getDeletedSchedules()).isEqualTo(Lists.newArrayList(
-                Schedule.builder().noneMapped(true).build(),
                 Schedule.builder().id("1").idMapped(true).build(),
                 Schedule.builder().id("2").idMapped(true).build()
         ));
