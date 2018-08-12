@@ -34,30 +34,30 @@ public class SqlParseUtil {
 
     public static Map<Integer, ColumnInfo> createWhereColumnInfo(SQLExpr where) {
         Map<Integer, ColumnInfo> cols = Maps.newHashMap();
-        if (where != null) processWhereItems(where, cols);
+        processWhereItems(where, cols);
 
         return cols;
     }
 
     private static void processWhereItems(SQLExpr where, Map<Integer, ColumnInfo> cols) {
         if (where instanceof SQLBinaryOpExpr) {
-            val expr = (SQLBinaryOpExpr) where;
-            val left = expr.getLeft();
-            val right = expr.getRight();
-            val operator = expr.getOperator().getName();
+            val e = (SQLBinaryOpExpr) where;
+            val l = e.getLeft();
+            val r = e.getRight();
+            val o = e.getOperator().getName();
 
-            if (Str.anyOf(operator, "=", "!=", "<>", ">", ">=", "<", "<=")) {
-                if (left instanceof SQLIdentifierExpr) {
-                    val simpleName = ((SQLIdentifierExpr) left).getSimpleName().toUpperCase();
+            if (Str.anyOf(o, "=", "!=", "<>", ">", ">=", "<", "<=")) {
+                if (l instanceof SQLIdentifierExpr) {
+                    val simpleName = ((SQLIdentifierExpr) l).getSimpleName().toUpperCase();
                     int colIndex = cols.size() + 1;
 
-                    ColumnInfo columnInfo = new ColumnInfo(simpleName);
+                    val columnInfo = new ColumnInfo(simpleName);
                     cols.put(colIndex, columnInfo);
-                    fulfilColumnInfo(right, columnInfo);
+                    fulfilColumnInfo(r, columnInfo);
                 }
-            } else if (Str.anyOf(operator, "AND", "OR")) {
-                processWhereItems(left, cols);
-                processWhereItems(right, cols);
+            } else if (Str.anyOf(o, "AND", "OR")) {
+                processWhereItems(l, cols);
+                processWhereItems(r, cols);
             }
         }
     }
