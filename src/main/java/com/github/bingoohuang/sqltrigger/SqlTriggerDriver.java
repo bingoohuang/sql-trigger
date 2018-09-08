@@ -62,9 +62,9 @@ public class SqlTriggerDriver implements Driver {
     }
 
     private Object[] registeredTriggerBeans() {
-        List<TriggerBeanAware> beans = Lists.newArrayList();
-        for (val beanAware : ServiceLoader.load(TriggerBeanAware.class)) {
-            beans.add(beanAware);
+        List<SqlTriggerAware> beans = Lists.newArrayList();
+        for (val aware : ServiceLoader.load(SqlTriggerAware.class)) {
+            beans.add(aware);
         }
 
         return beans.toArray(new Object[beans.size()]);

@@ -2,7 +2,7 @@ package com.github.bingoohuang.sqltrigger.driver;
 
 import com.github.bingoohuang.sqltrigger.SqlTrigger;
 import com.github.bingoohuang.sqltrigger.SqlTriggerContext;
-import com.github.bingoohuang.sqltrigger.TriggerBeanAware;
+import com.github.bingoohuang.sqltrigger.SqlTriggerAware;
 import com.github.bingoohuang.sqltrigger.TriggerType;
 import com.github.bingoohuang.sqltrigger.proxy.Schedule;
 import com.google.auto.service.AutoService;
@@ -10,12 +10,12 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 
-@AutoService(TriggerBeanAware.class)
-public class ScheduleCrudTrigger implements TriggerBeanAware {
+@AutoService(SqlTriggerAware.class)
+public class ScheduleCrudTrigger implements SqlTriggerAware {
     public final static List<Schedule> addedSchedules = Lists.newArrayList();
 
     @SqlTrigger(table = "t_schedule", type = TriggerType.INSERT)
-    public void onScheduleAdd(Schedule schedule, SqlTriggerContext context) {
+    public void onScheduleAdd(Schedule schedule) {
         addedSchedules.add(schedule);
     }
 
