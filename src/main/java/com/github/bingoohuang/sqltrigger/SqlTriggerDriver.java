@@ -2,16 +2,19 @@ package com.github.bingoohuang.sqltrigger;
 
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.Lists;
 import lombok.val;
 
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 @AutoService(Driver.class)
 public class SqlTriggerDriver implements Driver {
     private static Driver INSTANCE = new SqlTriggerDriver();
+    private static SqlTriggerProxy sqlTriggerProxy = SqlTriggerProxy.createByRegisteredTriggerBeans();
 
     static {
         try {
@@ -23,7 +26,7 @@ public class SqlTriggerDriver implements Driver {
 
     @Override
     public boolean acceptsURL(final String url) {
-        return url != null && url.startsWith("jdbc:sql-trigger:");
+        return url != null && url.startsWith("jdbc:sqltrigger:");
     }
 
     /**
@@ -33,7 +36,7 @@ public class SqlTriggerDriver implements Driver {
      * @return the parsed URL
      */
     private String extractRealUrl(String url) {
-        return acceptsURL(url) ? url.replace("sql-trigger:", "") : url;
+        return acceptsURL(url) ? url.replace("sqltrigger:", "") : url;
     }
 
     static List<Driver> registeredDrivers() {
@@ -43,6 +46,7 @@ public class SqlTriggerDriver implements Driver {
         }
         return result;
     }
+
 
     @Override
     public Connection connect(String url, Properties properties) throws SQLException {
@@ -54,20 +58,7 @@ public class SqlTriggerDriver implements Driver {
         val passThru = findPassthru(url);
 
         val conn = passThru.connect(extractRealUrl(url), properties);
-
-        Object[] array = registeredTriggerBeans();
-        if (array.length == 0) return conn;
-
-        return new SqlTriggerProxy(array).proxy(conn);
-    }
-
-    private Object[] registeredTriggerBeans() {
-        List<SqlTriggerAware> beans = Lists.newArrayList();
-        for (val aware : ServiceLoader.load(SqlTriggerAware.class)) {
-            beans.add(aware);
-        }
-
-        return beans.toArray(new Object[beans.size()]);
+        return sqlTriggerProxy.proxy(conn);
     }
 
     protected Driver findPassthru(String url) throws SQLException {

@@ -21,7 +21,7 @@ public class SqlTriggerFilterProxyTest {
         val filter = new ScheduleFilter();
 
         val h2Conn = SqlTypeTestUtil.getH2Connection();
-        executeSqls(h2Conn, "drop table  if exists T_SCHEDULE_PROXY",
+        executeSqls(h2Conn, "drop table if exists T_SCHEDULE_PROXY",
                 "create table T_SCHEDULE_PROXY ( id varchar(20) primary key, name varchar(20) not null, schedule_state varchar(3) not null comment '状态', subscribes int not null default 0 comment '订课人数' )");
 
 

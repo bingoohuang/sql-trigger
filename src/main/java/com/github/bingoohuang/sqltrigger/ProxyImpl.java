@@ -11,8 +11,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ProxyImpl {
     private final Object preparedStatement;
-    private final List<Map<Integer, ColumnInfo>> colsList;
-    private final Map<Integer, ColumnInfo> setCols;
+    private final List<Map<Integer, TriggerColumnInfo>> colsList;
+    private final Map<Integer, TriggerColumnInfo> setCols;
     private final List<TriggerBeanItem> items;
     private final Object[] filterBeans;
 
@@ -34,7 +34,7 @@ public class ProxyImpl {
         }
     }
 
-    private int incrementVariantRef(Map<Integer, ColumnInfo> cols, int varIndex) {
+    private int incrementVariantRef(Map<Integer, TriggerColumnInfo> cols, int varIndex) {
         for (val e : cols.entrySet()) {
             val columnInfo = e.getValue();
             if (columnInfo.getValueType() == ValueType.VariantRef) {

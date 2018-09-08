@@ -24,20 +24,19 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 public class PsInvocationHandler implements InvocationHandler {
     private final Object preparedStatement;
     private final List<TriggerBeanItem> items;
-    private final List<Map<Integer, ColumnInfo>> colsList;
-    private final Map<Integer, ColumnInfo> setCols;
+    private final List<Map<Integer, TriggerColumnInfo>> colsList;
+    private final Map<Integer, TriggerColumnInfo> setCols;
     private final Object[] filterBeans;
 
     Map<Integer, Object> parameters = null;
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {
-        if (Str.anyOf(method.getName(), "setString", "setObject")) {
-            int parameterIndex = (Integer) args[0];
-            if (parameters == null)
-                parameters = Maps.newHashMap();
-            parameters.put(parameterIndex, args[1]);
-        } else if (method.getName().equals("executeUpdate")) {
+        val m = method.getName();
+        if (Str.anyOf(m, "setString", "setObject")) {
+            if (parameters == null) parameters = Maps.newHashMap();
+            parameters.put((Integer) args[0], args[1]);
+        } else if (m.equals("executeUpdate")) {
             invokeFilter();
             parameters = null;
         }
@@ -54,7 +53,7 @@ public class PsInvocationHandler implements InvocationHandler {
         colsList.forEach(x -> invokeFilter(x, item));
     }
 
-    private void invokeFilter(Map<Integer, ColumnInfo> cols, TriggerBeanItem item) {
+    private void invokeFilter(Map<Integer, TriggerColumnInfo> cols, TriggerBeanItem item) {
         List<Object> args = Lists.newArrayList();
 
         int beanIndex = 0;
@@ -81,7 +80,7 @@ public class PsInvocationHandler implements InvocationHandler {
     }
 
 
-    private Object createBean(Parameter parameter, Map<Integer, ColumnInfo> cols) {
+    private Object createBean(Parameter parameter, Map<Integer, TriggerColumnInfo> cols) {
         val parameterType = parameter.getType();
         val param = Reflect.on(parameterType).create().get();
 
@@ -127,7 +126,7 @@ public class PsInvocationHandler implements InvocationHandler {
         if (mappedField != null) setField(mappedField, param, Boolean.TRUE);
     }
 
-    private ColumnInfo findColumn(Map<Integer, ColumnInfo> cols, Set<String> names) {
+    private TriggerColumnInfo findColumn(Map<Integer, TriggerColumnInfo> cols, Set<String> names) {
         for (val e : cols.entrySet()) {
             if (names.contains(e.getValue().getName())) return e.getValue();
         }

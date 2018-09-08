@@ -4,7 +4,6 @@ import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import lombok.RequiredArgsConstructor;
 import lombok.val;
 import org.apache.commons.collections.CollectionUtils;
 
@@ -13,24 +12,34 @@ import java.util.Map;
 
 import static com.github.bingoohuang.sqltrigger.SqlParseUtil.fulfilColumnInfo;
 
-@RequiredArgsConstructor
-public class ProxyInsert implements ProxyPrepare {
+public class ProxyFactoryInsert extends ProxyFactoryPrepare {
+    private final SqlTriggerBeanMap sqlTriggerBeanMap;
     private final SQLInsertStatement stmt;
+    private final List<TriggerBeanItem> items;
 
-    @Override public Object create(SqlTriggerParser sqlTriggerParser, Object ps, Object[] filterBeans) {
+    public ProxyFactoryInsert(SqlTriggerBeanMap sqlTriggerBeanMap, SQLInsertStatement stmt) {
+        this.sqlTriggerBeanMap = sqlTriggerBeanMap;
+        this.stmt = stmt;
+
         val tableName = stmt.getTableName().getSimpleName();
-        val items = sqlTriggerParser.findByFilterType(tableName, TriggerType.INSERT);
-        if (CollectionUtils.isEmpty(items)) return ps;
+        this.items = sqlTriggerBeanMap.findByTriggerType(tableName, TriggerType.INSERT);
+    }
 
+    @Override public boolean requiredProxy() {
+        return CollectionUtils.isNotEmpty(items);
+    }
+
+    @Override public Object createPsProxyFactory(Object ps) {
         val cols = createSqlInsertColumns();
         val colsList = fulfilSqlInsertColumns(cols);
 
-        return new ProxyImpl(ps, Lists.newArrayList(colsList), null, items, filterBeans).create();
+        Object[] triggerBeans = sqlTriggerBeanMap.getTriggerBeans();
+        return new ProxyImpl(ps, Lists.newArrayList(colsList), null, items, triggerBeans).create();
 
     }
 
-    private List<Map<Integer, ColumnInfo>> fulfilSqlInsertColumns(Map<Integer, ColumnInfo> prototype) {
-        List<Map<Integer, ColumnInfo>> list = Lists.newArrayList();
+    private List<Map<Integer, TriggerColumnInfo>> fulfilSqlInsertColumns(Map<Integer, TriggerColumnInfo> prototype) {
+        List<Map<Integer, TriggerColumnInfo>> list = Lists.newArrayList();
 
         for (val values : stmt.getValuesList()) {
             val cols = SqlParseUtil.clone(prototype);
@@ -46,8 +55,8 @@ public class ProxyInsert implements ProxyPrepare {
         return list;
     }
 
-    private Map<Integer, ColumnInfo> createSqlInsertColumns() {
-        Map<Integer, ColumnInfo> cols = Maps.newHashMap();
+    private Map<Integer, TriggerColumnInfo> createSqlInsertColumns() {
+        Map<Integer, TriggerColumnInfo> cols = Maps.newHashMap();
 
         int index = 0;
         for (val col : stmt.getColumns()) {
@@ -55,7 +64,7 @@ public class ProxyInsert implements ProxyPrepare {
 
             if (col instanceof SQLIdentifierExpr) {
                 val simpleName = ((SQLIdentifierExpr) col).getSimpleName();
-                cols.put(index, new ColumnInfo(simpleName.toUpperCase()));
+                cols.put(index, new TriggerColumnInfo(simpleName.toUpperCase()));
             }
         }
 

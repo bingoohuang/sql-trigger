@@ -23,7 +23,7 @@ public class SqlTypeTestUtil {
     @SneakyThrows
     public static Connection getSqlTriggerH2Connection() {
         Class.forName("org.h2.Driver");
-        return DriverManager.getConnection("jdbc:sql-trigger:h2:./src/test/resources/test", "sa", "");
+        return DriverManager.getConnection("jdbc:sqltrigger:h2:./src/test/resources/test", "sa", "");
     }
 
 

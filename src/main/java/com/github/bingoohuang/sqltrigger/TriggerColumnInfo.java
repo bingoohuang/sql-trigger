@@ -4,7 +4,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 @Data @RequiredArgsConstructor
-public class ColumnInfo {
+public class TriggerColumnInfo {
     private final String name;
     private int varIndex;
     private ValueType valueType;

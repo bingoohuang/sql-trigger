@@ -1,55 +1,60 @@
 package com.github.bingoohuang.sqltrigger;
 
 
-import com.alibaba.druid.sql.SQLUtils;
-import com.alibaba.druid.sql.ast.SQLStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
-import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
-import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
-import com.alibaba.druid.util.JdbcConstants;
+import com.google.common.collect.Lists;
+import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.util.List;
+import java.util.ServiceLoader;
 
 import static com.github.bingoohuang.sqltrigger.ReflectUtil.invokeMethod;
 
+@Slf4j
 public class SqlTriggerProxy {
-    private final Object[] triggerBeans;
-    private final SqlTriggerParser sqlTriggerParser;
+    private final ProxyFactoryCache proxyFactoryCache;
 
-    public SqlTriggerProxy(Object... triggerBeans) {
-        this.triggerBeans = triggerBeans;
-        this.sqlTriggerParser = new SqlTriggerParser(triggerBeans);
+    public SqlTriggerProxy(Object... beans) {
+        this.proxyFactoryCache = new ProxyFactoryCache(new SqlTriggerBeanMap(beans));
+    }
+
+    public static Object[] registeredTriggerBeans() {
+        List<SqlTriggerAware> beans = Lists.newArrayList();
+        for (val aware : ServiceLoader.load(SqlTriggerAware.class)) {
+            beans.add(aware);
+        }
+
+        return beans.toArray(new Object[beans.size()]);
+    }
+
+    public static SqlTriggerProxy createByRegisteredTriggerBeans() {
+        return new SqlTriggerProxy(registeredTriggerBeans());
     }
 
     public Connection proxy(Connection conn) {
+        if (!proxyFactoryCache.hasTriggerBean()) return conn;
+
         return (Connection) Proxy.newProxyInstance(SqlTriggerProxy.class.getClassLoader(),
                 new Class[]{Connection.class}, (proxy, method, args) -> {
                     val invoke = invokeMethod(method, conn, args);
                     if (method.getName().equals("prepareStatement")) {
-                        return proxyPreparedStatement(invoke, args);
+                        return proxyPs(invoke, args);
                     }
 
                     return invoke;
                 });
     }
 
-    private Object proxyPreparedStatement(Object ps, Object[] args) {
-        val stmts = SQLUtils.parseStatements((String) args[0], JdbcConstants.MYSQL);
-        val parser = createFilterSqlParser(stmts.get(0));
-        return parser != null ? parser.create(sqlTriggerParser, ps, triggerBeans) : ps;
-    }
-
-    private ProxyPrepare createFilterSqlParser(SQLStatement stmt) {
-        if (stmt instanceof SQLInsertStatement) {
-            return new ProxyInsert((SQLInsertStatement) stmt);
-        } else if (stmt instanceof SQLDeleteStatement) {
-            return new ProxyDelete((SQLDeleteStatement) stmt);
-        } else if (stmt instanceof SQLUpdateStatement) {
-            return new ProxyUpdate((SQLUpdateStatement) stmt);
+    private Object proxyPs(Object ps, Object[] args) {
+        try {
+            val proxyFactory = proxyFactoryCache.getProxyFactory((String) args[0]);
+            return proxyFactory.requiredProxy() ? proxyFactory.createPsProxyFactory(ps) : ps;
+        } catch (Exception ex) {
+            log.warn("fail to parse sql {}", args[0]);
+            return ps;
         }
-
-        return null;
     }
+
 }
