@@ -1,4 +1,4 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger;
 
 import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
@@ -15,9 +15,9 @@ public class ProxyUpdate implements ProxyPrepare {
     private final SQLUpdateStatement stmt;
 
     @Override
-    public Object create(FilterParser filterParser, Object ps, Object[] filterBeans) {
+    public Object create(SqlTriggerParser sqlTriggerParser, Object ps, Object[] filterBeans) {
         val tableName = stmt.getTableName().getSimpleName();
-        val items = filterParser.findByFilterType(tableName, FilterType.UPDATE);
+        val items = sqlTriggerParser.findByFilterType(tableName, TriggerType.UPDATE);
         if (CollectionUtils.isEmpty(items)) return ps;
 
         val setCols = createUpdateColumnInfo();

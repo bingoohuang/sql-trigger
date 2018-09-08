@@ -1,4 +1,4 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger;
 
 
 import com.alibaba.druid.sql.SQLUtils;
@@ -12,19 +12,19 @@ import lombok.val;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 
-import static com.github.bingoohuang.sqlfilter.ReflectUtil.invokeMethod;
+import static com.github.bingoohuang.sqltrigger.ReflectUtil.invokeMethod;
 
-public class SqlFilterProxy {
-    private final Object[] filterBeans;
-    private final FilterParser filterParser;
+public class SqlTriggerProxy {
+    private final Object[] triggerBeans;
+    private final SqlTriggerParser sqlTriggerParser;
 
-    public SqlFilterProxy(Object... filterBeans) {
-        this.filterBeans = filterBeans;
-        this.filterParser = new FilterParser(filterBeans);
+    public SqlTriggerProxy(Object... triggerBeans) {
+        this.triggerBeans = triggerBeans;
+        this.sqlTriggerParser = new SqlTriggerParser(triggerBeans);
     }
 
     public Connection proxy(Connection conn) {
-        return (Connection) Proxy.newProxyInstance(SqlFilterProxy.class.getClassLoader(),
+        return (Connection) Proxy.newProxyInstance(SqlTriggerProxy.class.getClassLoader(),
                 new Class[]{Connection.class}, (proxy, method, args) -> {
                     val invoke = invokeMethod(method, conn, args);
                     if (method.getName().equals("prepareStatement")) {
@@ -38,7 +38,7 @@ public class SqlFilterProxy {
     private Object proxyPreparedStatement(Object ps, Object[] args) {
         val stmts = SQLUtils.parseStatements((String) args[0], JdbcConstants.MYSQL);
         val parser = createFilterSqlParser(stmts.get(0));
-        return parser != null ? parser.create(filterParser, ps, filterBeans) : ps;
+        return parser != null ? parser.create(sqlTriggerParser, ps, triggerBeans) : ps;
     }
 
     private ProxyPrepare createFilterSqlParser(SQLStatement stmt) {

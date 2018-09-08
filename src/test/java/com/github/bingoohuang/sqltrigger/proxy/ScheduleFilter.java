@@ -1,5 +1,7 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger.proxy;
 
+import com.github.bingoohuang.sqltrigger.SqlTrigger;
+import com.github.bingoohuang.sqltrigger.TriggerType;
 import com.google.common.collect.Lists;
 import lombok.Getter;
 
@@ -10,13 +12,13 @@ public class ScheduleFilter {
     private final List<Schedule> deletedSchedules = Lists.newArrayList();
     private final List<Schedule> updatedSchedules = Lists.newArrayList();
 
-    @SqlFilter(table = "t_schedule", type = FilterType.UPDATE)
+    @SqlTrigger(table = "T_SCHEDULE_PROXY", type = TriggerType.UPDATE)
     public void onScheduleUpdate(Schedule scheduleOld, Schedule scheduleNew) {
         updatedSchedules.add(scheduleOld);
         updatedSchedules.add(scheduleNew);
     }
 
-    @SqlFilter(table = "t_schedule", type = FilterType.DELETE)
+    @SqlTrigger(table = "T_SCHEDULE_PROXY", type = TriggerType.DELETE)
     public void onScheduleDelete(Schedule schedule) {
         deletedSchedules.add(schedule);
     }

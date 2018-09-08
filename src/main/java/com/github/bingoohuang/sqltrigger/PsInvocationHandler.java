@@ -1,4 +1,4 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger;
 
 import com.github.bingoohuang.utils.lang.Str;
 import com.google.common.collect.Lists;
@@ -16,14 +16,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.github.bingoohuang.sqlfilter.ReflectUtil.invokeMethod;
-import static com.github.bingoohuang.sqlfilter.ReflectUtil.setField;
+import static com.github.bingoohuang.sqltrigger.ReflectUtil.invokeMethod;
+import static com.github.bingoohuang.sqltrigger.ReflectUtil.setField;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 @RequiredArgsConstructor
 public class PsInvocationHandler implements InvocationHandler {
     private final Object preparedStatement;
-    private final List<FilterItem> items;
+    private final List<TriggerBeanItem> items;
     private final List<Map<Integer, ColumnInfo>> colsList;
     private final Map<Integer, ColumnInfo> setCols;
     private final Object[] filterBeans;
@@ -50,18 +50,18 @@ public class PsInvocationHandler implements InvocationHandler {
         items.forEach(x -> invokeFilter(x));
     }
 
-    private void invokeFilter(FilterItem item) {
+    private void invokeFilter(TriggerBeanItem item) {
         colsList.forEach(x -> invokeFilter(x, item));
     }
 
-    private void invokeFilter(Map<Integer, ColumnInfo> cols, FilterItem item) {
+    private void invokeFilter(Map<Integer, ColumnInfo> cols, TriggerBeanItem item) {
         List<Object> args = Lists.newArrayList();
 
         int beanIndex = 0;
         val method = item.getMethod();
         for (val parameter : method.getParameters()) {
-            if (parameter.getType() == SqlFilterContext.class) {
-                args.add(new SqlFilterContext());
+            if (parameter.getType() == SqlTriggerContext.class) {
+                args.add(new SqlTriggerContext());
             } else {
                 if (beanIndex == 0) {
                     args.add(createBean(parameter, cols));
@@ -121,7 +121,7 @@ public class PsInvocationHandler implements InvocationHandler {
     }
 
     private void setMapped(Class<?> parameterType, Object param, Field field) {
-        val fc = field.getAnnotation(SqlFilterColumn.class);
+        val fc = field.getAnnotation(SqlTriggerColumn.class);
         val mappedName = fc == null || isEmpty(fc.mappedField()) ? field.getName() + "Mapped" : fc.mappedField();
         val mappedField = ReflectUtil.findField(parameterType, mappedName);
         if (mappedField != null) setField(mappedField, param, Boolean.TRUE);
@@ -136,7 +136,7 @@ public class PsInvocationHandler implements InvocationHandler {
     }
 
     private Set<String> createAllowedNames(Field field) {
-        val filterColumn = field.getAnnotation(SqlFilterColumn.class);
+        val filterColumn = field.getAnnotation(SqlTriggerColumn.class);
         val fieldName = filterColumn != null ? filterColumn.value() : field.getName();
 
         return Sets.newHashSet(fieldName.toUpperCase(), NameUtil.toUpperUnderScore(fieldName));

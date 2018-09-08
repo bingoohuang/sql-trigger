@@ -1,4 +1,4 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger;
 
 import lombok.SneakyThrows;
 import lombok.val;

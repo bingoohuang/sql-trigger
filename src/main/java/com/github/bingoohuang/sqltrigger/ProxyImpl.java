@@ -1,4 +1,4 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger;
 
 import lombok.RequiredArgsConstructor;
 import lombok.val;
@@ -13,7 +13,7 @@ public class ProxyImpl {
     private final Object preparedStatement;
     private final List<Map<Integer, ColumnInfo>> colsList;
     private final Map<Integer, ColumnInfo> setCols;
-    private final List<FilterItem> items;
+    private final List<TriggerBeanItem> items;
     private final Object[] filterBeans;
 
     public Object create() {

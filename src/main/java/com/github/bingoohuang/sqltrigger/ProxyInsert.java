@@ -1,4 +1,4 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger;
 
 import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
@@ -11,15 +11,15 @@ import org.apache.commons.collections.CollectionUtils;
 import java.util.List;
 import java.util.Map;
 
-import static com.github.bingoohuang.sqlfilter.SqlParseUtil.fulfilColumnInfo;
+import static com.github.bingoohuang.sqltrigger.SqlParseUtil.fulfilColumnInfo;
 
 @RequiredArgsConstructor
 public class ProxyInsert implements ProxyPrepare {
     private final SQLInsertStatement stmt;
 
-    @Override public Object create(FilterParser filterParser, Object ps, Object[] filterBeans) {
+    @Override public Object create(SqlTriggerParser sqlTriggerParser, Object ps, Object[] filterBeans) {
         val tableName = stmt.getTableName().getSimpleName();
-        val items = filterParser.findByFilterType(tableName, FilterType.INSERT);
+        val items = sqlTriggerParser.findByFilterType(tableName, TriggerType.INSERT);
         if (CollectionUtils.isEmpty(items)) return ps;
 
         val cols = createSqlInsertColumns();

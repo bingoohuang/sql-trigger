@@ -1,4 +1,4 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger;
 
 import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
 import com.google.common.collect.Lists;
@@ -11,9 +11,9 @@ public class ProxyDelete implements ProxyPrepare {
     private final SQLDeleteStatement stmt;
 
     @Override
-    public Object create(FilterParser filterParser, Object ps, Object[] filterBeans) {
+    public Object create(SqlTriggerParser sqlTriggerParser, Object ps, Object[] filterBeans) {
         val tableName = stmt.getTableName().getSimpleName();
-        val items = filterParser.findByFilterType(tableName, FilterType.DELETE);
+        val items = sqlTriggerParser.findByFilterType(tableName, TriggerType.DELETE);
         if (CollectionUtils.isEmpty(items)) return ps;
 
         val cols = SqlParseUtil.createWhereColumnInfo(stmt.getWhere());

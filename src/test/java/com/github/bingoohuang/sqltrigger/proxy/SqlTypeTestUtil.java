@@ -1,4 +1,4 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger.proxy;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -20,6 +20,12 @@ public class SqlTypeTestUtil {
         return DriverManager.getConnection("jdbc:h2:./src/test/resources/test", "sa", "");
     }
 
+    @SneakyThrows
+    public static Connection getSqlTriggerH2Connection() {
+        Class.forName("org.h2.Driver");
+        return DriverManager.getConnection("jdbc:sql-trigger:h2:./src/test/resources/test", "sa", "");
+    }
+
 
     @SneakyThrows
     private static void bindArgs(PreparedStatement ps, Object[] args) {
@@ -39,6 +45,15 @@ public class SqlTypeTestUtil {
     public static int executeUpdate(Connection conn, String sql, Object... args) {
         @Cleanup val ps = conn.prepareStatement(sql);
         return executeUpdate(ps, args);
+    }
+
+
+    @SneakyThrows
+    public static void executeSqls(Connection conn, String... sqls) {
+        @Cleanup val st = conn.createStatement();
+        for (val sql : sqls) {
+            st.execute(sql);
+        }
     }
 
 

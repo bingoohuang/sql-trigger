@@ -5,13 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.github.bingoohuang</groupId>
-    <artifactId>jdbc-sql-filter</artifactId>
+    <artifactId>sql-trigger</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>jdbc-sql-filter</name>
+    <name>sql-trigger</name>
     <description>delay queue based on redis</description>
-    <url>http://github.com/bingoohuang/jdbc-sql-filter</url>
+    <url>http://github.com/bingoohuang/sql-trigger</url>
     <properties>
         <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -29,9 +29,9 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git@github.com:bingoohuang/jdbc-sql-filter.git</connection>
-        <url>http://github.com/bingoohuang/jdbc-sql-filter</url>
-        <developerConnection>scm:git:git@github.com:bingoohuang/jdbc-sql-filter.git</developerConnection>
+        <connection>scm:git:git@github.com:bingoohuang/sql-trigger.git</connection>
+        <url>http://github.com/bingoohuang/sql-trigger</url>
+        <developerConnection>scm:git:git@github.com:bingoohuang/sql-trigger.git</developerConnection>
     </scm>
 
     <developers>
@@ -43,6 +43,11 @@
     </developers>
 
     <dependencies>
+        <dependency>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service</artifactId>
+            <version>1.0-rc4</version>
+        </dependency>
         <dependency>
             <groupId>com.github.bingoohuang</groupId>
             <artifactId>java-utils</artifactId>
@@ -66,7 +71,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.0</version>
+            <version>1.18.2</version>
             <optional>true</optional>
             <scope>provided</scope>
         </dependency>

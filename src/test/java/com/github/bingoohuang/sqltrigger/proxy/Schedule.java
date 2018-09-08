@@ -1,5 +1,6 @@
-package com.github.bingoohuang.sqlfilter;
+package com.github.bingoohuang.sqltrigger.proxy;
 
+import com.github.bingoohuang.sqltrigger.SqlTriggerColumn;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,7 +13,7 @@ public class Schedule {
     private String name;
     private boolean nameMapped;
 
-    @SqlFilterColumn(value = "schedule_state", mappedField = "stateUsed")
+    @SqlTriggerColumn(value = "schedule_state", mappedField = "stateUsed")
     private String state;
 
     private boolean stateUsed;
