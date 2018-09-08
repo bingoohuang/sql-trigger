@@ -7,9 +7,16 @@
 jdbc sql filter to sql postprocessing like sql rewriting, crud trigger and etc.
 
 # Intention
-At some cases, we want to trigger extra actions when add/update/delete in some specified tables, like tt_f_mbr_card which stands for member cards, 
-but may be those sqls will be invoked by java code in  more than once places. We won't to add extra code processing at those more than once places.
-So I create this little java library to intercept from the connection source to inject some trigger actions.
+At some cases, we want to trigger extra actions when do add/update/delete in some specified tables, like tt_f_mbr_card which stands for member cards, 
+but java code which execute those sqls will be invoked in more than once places. We won't to copy and paste extra processing here and there.
+So I create this tiny library, which can intercept sql executions to trigger some extra actions without adding invoking code more than one places.
+
+一个非常实际的场景是，排课，我们需要在排课（增加/复制/修改/删除）的时候，添加额外处理：
+1. 课程开始前3小时，给老师和学员发送即将上课提醒消息；
+2. 课程开始前1小时，执行最少开课人数检查，如果少于最少订课人数，自动取消排课；
+3. 课程开始后，给上课老师计算本课程的课时费用；
+4. 课程结束后，给学员发送课后点评提示消息，点评本节课。
+5. ...
 
 # Usage
 
@@ -18,7 +25,7 @@ So I create this little java library to intercept from the connection source to 
     <dependency>
         <groupId>com.github.bingoohuang</groupId>
         <artifactId>sql-trigger</artifactId>
-        <version>0.0.2-SNAPSHOT</version>
+        <version>{sql-trigger-version}</version>
     </dependency>
     ``` 
 
