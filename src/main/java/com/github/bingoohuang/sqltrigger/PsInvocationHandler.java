@@ -38,23 +38,18 @@ public class PsInvocationHandler implements InvocationHandler {
             if (parameters == null) parameters = Maps.newHashMap();
             parameters.put((Integer) args[0], args[1]);
         } else if (m.equals("executeUpdate")) {
-            invokeFilter();
+            items.forEach(x -> invokeTrigger(x));
             parameters = null;
         }
 
         return invokeMethod(method, preparedStatement, args);
     }
 
-
-    private void invokeFilter() {
-        items.forEach(x -> invokeFilter(x));
+    private void invokeTrigger(TriggerBeanItem item) {
+        colsList.forEach(x -> invokeTrigger(x, item));
     }
 
-    private void invokeFilter(TriggerBeanItem item) {
-        colsList.forEach(x -> invokeFilter(x, item));
-    }
-
-    private void invokeFilter(Map<Integer, TriggerColumnInfo> cols, TriggerBeanItem item) {
+    private void invokeTrigger(Map<Integer, TriggerColumnInfo> cols, TriggerBeanItem item) {
         List<Object> args = Lists.newArrayList();
 
         int beanIndex = 0;
