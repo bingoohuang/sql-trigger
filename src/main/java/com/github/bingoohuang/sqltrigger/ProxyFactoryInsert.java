@@ -9,15 +9,18 @@ import org.apache.commons.collections.CollectionUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.github.bingoohuang.sqltrigger.SqlParseUtil.fulfilColumnInfo;
 
 public class ProxyFactoryInsert extends ProxyFactoryPrepare {
+    private final String sql;
     private final SqlTriggerBeanMap sqlTriggerBeanMap;
     private final SQLInsertStatement stmt;
     private final List<TriggerBeanItem> items;
 
-    public ProxyFactoryInsert(SqlTriggerBeanMap sqlTriggerBeanMap, SQLInsertStatement stmt) {
+    public ProxyFactoryInsert(String sql, SqlTriggerBeanMap sqlTriggerBeanMap, SQLInsertStatement stmt) {
+        this.sql = sql;
         this.sqlTriggerBeanMap = sqlTriggerBeanMap;
         this.stmt = stmt;
 
@@ -34,21 +37,26 @@ public class ProxyFactoryInsert extends ProxyFactoryPrepare {
         val colsList = fulfilSqlInsertColumns(cols);
 
         Object[] triggerBeans = sqlTriggerBeanMap.getTriggerBeans();
-        return new ProxyImpl(ps, Lists.newArrayList(colsList), null, items, triggerBeans).create();
+        return new ProxyImpl(sql, ps, Lists.newArrayList(colsList), null, items, triggerBeans, new AtomicInteger()).create();
 
     }
 
     private List<Map<Integer, TriggerColumnInfo>> fulfilSqlInsertColumns(Map<Integer, TriggerColumnInfo> prototype) {
         List<Map<Integer, TriggerColumnInfo>> list = Lists.newArrayList();
 
+        val variantVisitor = new VariantVisitor();
         for (val values : stmt.getValuesList()) {
             val cols = SqlParseUtil.clone(prototype);
             list.add(cols);
 
             int index = 0;
             for (val value : values.getValues()) {
+                value.accept(variantVisitor);
                 val col = cols.get(++index);
-                if (col != null) fulfilColumnInfo(value, col);
+                if (col != null) {
+                    fulfilColumnInfo(col, value);
+                    col.setVarIndex(variantVisitor.getVarIndex());
+                }
             }
         }
 

@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 @RequiredArgsConstructor
 public class PsInvocationHandler implements InvocationHandler {
+    private final String sql;
     private final Object preparedStatement;
     private final List<TriggerBeanItem> items;
     private final List<Map<Integer, TriggerColumnInfo>> colsList;
@@ -60,7 +61,7 @@ public class PsInvocationHandler implements InvocationHandler {
         val method = item.getMethod();
         for (val parameter : method.getParameters()) {
             if (parameter.getType() == SqlTriggerContext.class) {
-                args.add(new SqlTriggerContext());
+                args.add(new SqlTriggerContext(sql, parameters));
             } else {
                 if (beanIndex == 0) {
                     args.add(createBean(parameter, cols));

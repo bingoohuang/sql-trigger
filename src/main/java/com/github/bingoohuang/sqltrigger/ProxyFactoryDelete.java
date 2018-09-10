@@ -6,14 +6,17 @@ import lombok.val;
 import org.apache.commons.collections.CollectionUtils;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ProxyFactoryDelete extends ProxyFactoryPrepare {
+    private final String sql;
     private final SqlTriggerBeanMap sqlTriggerBeanMap;
     private final SQLDeleteStatement stmt;
     private final List<TriggerBeanItem> items;
 
 
-    public ProxyFactoryDelete(SqlTriggerBeanMap sqlTriggerBeanMap, SQLDeleteStatement stmt) {
+    public ProxyFactoryDelete(String sql, SqlTriggerBeanMap sqlTriggerBeanMap, SQLDeleteStatement stmt) {
+        this.sql = sql;
         this.sqlTriggerBeanMap = sqlTriggerBeanMap;
         this.stmt = stmt;
         val tableName = stmt.getTableName().getSimpleName();
@@ -28,6 +31,6 @@ public class ProxyFactoryDelete extends ProxyFactoryPrepare {
     public Object createPsProxyFactory(Object ps) {
         val cols = SqlParseUtil.createWhereColumnInfo(stmt.getWhere());
         Object[] triggerBeans = sqlTriggerBeanMap.getTriggerBeans();
-        return new ProxyImpl(ps, Lists.newArrayList(cols), null, items, triggerBeans).create();
+        return new ProxyImpl(sql, ps, Lists.newArrayList(cols), null, items, triggerBeans, new AtomicInteger()).create();
     }
 }

@@ -20,7 +20,7 @@ public class SqlParseUtil {
         return map;
     }
 
-    public static void fulfilColumnInfo(SQLExpr value, TriggerColumnInfo col) {
+    public static void fulfilColumnInfo(TriggerColumnInfo col, SQLExpr value) {
         if (value instanceof SQLVariantRefExpr) {
             col.setValueType(ValueType.VariantRef);
         } else if (value instanceof SQLTextLiteralExpr) {
@@ -48,18 +48,25 @@ public class SqlParseUtil {
 
             if (Str.anyOf(o, "=", "!=", "<>", ">", ">=", "<", "<=")) {
                 if (l instanceof SQLIdentifierExpr) {
-                    val simpleName = ((SQLIdentifierExpr) l).getSimpleName().toUpperCase();
-                    int colIndex = cols.size() + 1;
-
-                    val columnInfo = new TriggerColumnInfo(simpleName);
-                    cols.put(colIndex, columnInfo);
-                    fulfilColumnInfo(r, columnInfo);
+                    val simpleName = ((SQLIdentifierExpr) l).getSimpleName();
+                    createWhereTriggerColumn(cols, r, simpleName);
+                } else if (l instanceof SQLPropertyExpr) {
+                    val simpleName = ((SQLPropertyExpr) l).getSimpleName();
+                    createWhereTriggerColumn(cols, r, simpleName);
                 }
             } else if (Str.anyOf(o, "AND", "OR")) {
                 processWhereItems(l, cols);
                 processWhereItems(r, cols);
             }
         }
+    }
+
+    private static void createWhereTriggerColumn(Map<Integer, TriggerColumnInfo> cols, SQLExpr r, String simpleName) {
+        int colIndex = cols.size() + 1;
+
+        val columnInfo = new TriggerColumnInfo(simpleName.toUpperCase());
+        cols.put(colIndex, columnInfo);
+        fulfilColumnInfo(columnInfo, r);
     }
 
 }
