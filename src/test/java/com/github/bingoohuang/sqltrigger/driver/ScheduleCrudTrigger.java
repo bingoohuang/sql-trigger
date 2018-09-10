@@ -1,7 +1,6 @@
 package com.github.bingoohuang.sqltrigger.driver;
 
 import com.github.bingoohuang.sqltrigger.SqlTrigger;
-import com.github.bingoohuang.sqltrigger.SqlTriggerContext;
 import com.github.bingoohuang.sqltrigger.SqlTriggerAware;
 import com.github.bingoohuang.sqltrigger.TriggerType;
 import com.github.bingoohuang.sqltrigger.proxy.Schedule;

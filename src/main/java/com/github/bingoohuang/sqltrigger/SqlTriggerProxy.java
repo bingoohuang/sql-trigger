@@ -1,6 +1,7 @@
 package com.github.bingoohuang.sqltrigger;
 
 
+import com.github.bingoohuang.sqltrigger.spring.SpringBeanFactory;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -22,8 +23,13 @@ public class SqlTriggerProxy {
 
     public static Object[] registeredTriggerBeans() {
         List<SqlTriggerAware> beans = Lists.newArrayList();
-        for (val aware : ServiceLoader.load(SqlTriggerAware.class)) {
-            beans.add(aware);
+
+        if (Envs.HAS_SPRING && SpringBeanFactory.isSpringEnabled()) {
+            beans.addAll(SpringBeanFactory.getBeans(SqlTriggerAware.class));
+        } else {
+            for (val aware : ServiceLoader.load(SqlTriggerAware.class)) {
+                beans.add(aware);
+            }
         }
 
         return beans.toArray(new Object[beans.size()]);
