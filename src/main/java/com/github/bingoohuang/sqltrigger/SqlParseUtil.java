@@ -29,6 +29,9 @@ public class SqlParseUtil {
         } else if (value instanceof SQLIntegerExpr) {
             col.setValueType(ValueType.Literal);
             col.setValue(((SQLIntegerExpr) value).getNumber());
+        } else if (value instanceof SQLNullExpr) {
+            col.setValueType(ValueType.Null);
+            col.setValue(null);
         }
     }
 

@@ -6,4 +6,5 @@ import lombok.Data;
 public class MbrCardLastActivateDayVo {
     private String mbrCardId;
     private Object latestActivateDay;
+    private boolean latestActivateDayMapped;
 }

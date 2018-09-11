@@ -94,6 +94,9 @@ public class PsInvocationHandler implements InvocationHandler {
             } else if (valueType == ValueType.Literal) {
                 fieldSet = true;
                 fieldValue = columnInfo.getValue();
+            } else if (valueType == ValueType.Null) {
+                fieldSet = true;
+                fieldValue = null;
             }
 
             if (fieldSet) {
